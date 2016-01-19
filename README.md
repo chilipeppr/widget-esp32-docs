@@ -1,9 +1,9 @@
-# com-chilipeppr-widget-nodemcusamples
-Load sample code for the NodeMCU Lua programming language.
+# com-chilipeppr-widget-nodemcu-docs
+An informational widget with install information and links to documentation for NodeMCU and Lua.
 
 ![alt text](screenshot.png "Screenshot")
 
-## ChiliPeppr Widget / NodeMCU Samples
+## ChiliPeppr Widget / NodeMCU Docs & Install
 
 All ChiliPeppr widgets/elements are defined using cpdefine() which is a method
 that mimics require.js. Each defined object must have a unique ID so it does
@@ -11,13 +11,13 @@ not conflict with other ChiliPeppr widgets.
 
 | Item                  | Value           |
 | -------------         | ------------- | 
-| ID                    | com-chilipeppr-widget-nodemcusamples |
-| Name                  | Widget / NodeMCU Samples |
-| Description           | Load sample code for the NodeMCU Lua programming language. |
-| chilipeppr.load() URL | http://raw.githubusercontent.com/chilipeppr/widget-nodemcusamples/master/auto-generated-widget.html |
-| Edit URL              | http://ide.c9.io/chilipeppr/widget-nodemcusamples |
-| Github URL            | http://github.com/chilipeppr/widget-nodemcusamples |
-| Test URL              | https://preview.c9users.io/chilipeppr/widget-nodemcusamples/widget.html |
+| ID                    | com-chilipeppr-widget-nodemcu-docs |
+| Name                  | Widget / NodeMCU Docs & Install |
+| Description           | An informational widget with install information and links to documentation for NodeMCU and Lua. |
+| chilipeppr.load() URL | http://raw.githubusercontent.com/chilipeppr/widget-nodemcu-docs/master/auto-generated-widget.html |
+| Edit URL              | http://ide.c9.io/chilipeppr/widget-nodemcu-docs |
+| Github URL            | http://github.com/chilipeppr/widget-nodemcu-docs |
+| Test URL              | https://preview.c9users.io/chilipeppr/widget-nodemcu-docs/widget.html |
 
 ## Example Code for chilipeppr.load() Statement
 
@@ -29,20 +29,20 @@ back the instance of it.
 
 ```javascript
 // Inject new div to contain widget or use an existing div with an ID
-$("body").append('<' + 'div id="myDivWidgetNodemcusamples"><' + '/div>');
+$("body").append('<' + 'div id="myDivWidgetNodemcuDocs"><' + '/div>');
 
 chilipeppr.load(
-  "#myDivWidgetNodemcusamples",
-  "http://raw.githubusercontent.com/chilipeppr/widget-nodemcusamples/master/auto-generated-widget.html",
+  "#myDivWidgetNodemcuDocs",
+  "http://raw.githubusercontent.com/chilipeppr/widget-nodemcu-docs/master/auto-generated-widget.html",
   function() {
-    // Callback after widget loaded into #myDivWidgetNodemcusamples
+    // Callback after widget loaded into #myDivWidgetNodemcuDocs
     // Now use require.js to get reference to instantiated widget
     cprequire(
-      ["inline:com-chilipeppr-widget-nodemcusamples"], // the id you gave your widget
-      function(myObjWidgetNodemcusamples) {
+      ["inline:com-chilipeppr-widget-nodemcu-docs"], // the id you gave your widget
+      function(myObjWidgetNodemcuDocs) {
         // Callback that is passed reference to the newly loaded widget
-        console.log("Widget / NodeMCU Samples just got loaded.", myObjWidgetNodemcusamples);
-        myObjWidgetNodemcusamples.init();
+        console.log("Widget / NodeMCU Docs & Install just got loaded.", myObjWidgetNodemcuDocs);
+        myObjWidgetNodemcuDocs.init();
       }
     );
   }
@@ -98,7 +98,7 @@ To better understand how ChiliPeppr's subscribe() method works see amplify.js's 
           </tr>
       </thead>
       <tbody>
-      <tr valign="top"><td>/com-chilipeppr-widget-nodemcusamples/com-chilipeppr-widget-luaeditor/loadScript</td><td>When we send this signal the Lua Editor listens for it and loads this file into the editor.</td></tr>    
+      <tr><td colspan="2">(No signals defined in this widget/element)</td></tr>    
       </tbody>
   </table>
 
@@ -132,7 +132,7 @@ The table below shows, in order, the methods and properties inside the widget/el
           </tr>
       </thead>
       <tbody>
-      <tr valign="top"><td>id</td><td>string</td><td>"com-chilipeppr-widget-nodemcusamples"<br><br>The ID of the widget. You must define this and make it unique.</td></tr><tr valign="top"><td>name</td><td>string</td><td>"Widget / NodeMCU Samples"</td></tr><tr valign="top"><td>desc</td><td>string</td><td>"Load sample code for the NodeMCU Lua programming language."</td></tr><tr valign="top"><td>url</td><td>string</td><td>"http://raw.githubusercontent.com/chilipeppr/widget-nodemcusamples/master/auto-generated-widget.html"</td></tr><tr valign="top"><td>fiddleurl</td><td>string</td><td>"http://ide.c9.io/chilipeppr/widget-nodemcusamples"</td></tr><tr valign="top"><td>githuburl</td><td>string</td><td>"http://github.com/chilipeppr/widget-nodemcusamples"</td></tr><tr valign="top"><td>testurl</td><td>string</td><td>"http://widget-nodemcusamples-chilipeppr.c9users.io/widget.html"</td></tr><tr valign="top"><td>publish</td><td>object</td><td>Please see docs above.<br><br>Define the publish signals that this widget/element owns or defines so that
+      <tr valign="top"><td>id</td><td>string</td><td>"com-chilipeppr-widget-nodemcu-docs"<br><br>The ID of the widget. You must define this and make it unique.</td></tr><tr valign="top"><td>name</td><td>string</td><td>"Widget / NodeMCU Docs & Install"</td></tr><tr valign="top"><td>desc</td><td>string</td><td>"An informational widget with install information and links to documentation for NodeMCU and Lua."</td></tr><tr valign="top"><td>url</td><td>string</td><td>"http://raw.githubusercontent.com/chilipeppr/widget-nodemcu-docs/master/auto-generated-widget.html"</td></tr><tr valign="top"><td>fiddleurl</td><td>string</td><td>"http://ide.c9.io/chilipeppr/widget-nodemcu-docs"</td></tr><tr valign="top"><td>githuburl</td><td>string</td><td>"http://github.com/chilipeppr/widget-nodemcu-docs"</td></tr><tr valign="top"><td>testurl</td><td>string</td><td>"http://widget-nodemcu-docs-chilipeppr.c9users.io/widget.html"</td></tr><tr valign="top"><td>publish</td><td>object</td><td>Please see docs above.<br><br>Define the publish signals that this widget/element owns or defines so that
 other widgets know how to subscribe to them and what they do.</td></tr><tr valign="top"><td>subscribe</td><td>object</td><td>Please see docs above.<br><br>Define the subscribe signals that this widget/element owns or defines so that
 other widgets know how to subscribe to them and what they do.</td></tr><tr valign="top"><td>foreignPublish</td><td>object</td><td>Please see docs above.<br><br>Document the foreign publish signals, i.e. signals owned by other widgets
 or elements, that this widget/element publishes to.</td></tr><tr valign="top"><td>foreignSubscribe</td><td>object</td><td>Please see docs above.<br><br>Document the foreign subscribe signals, i.e. signals owned by other widgets

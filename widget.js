@@ -34,7 +34,7 @@ requirejs.config({
     }
 });
 
-cprequire_test(["inline:com-chilipeppr-widget-nodemcusamples"], function(myWidget) {
+cprequire_test(["inline:com-chilipeppr-widget-nodemcu-docs"], function(myWidget) {
 
     // Test this element. This code is auto-removed by the chilipeppr.load()
     // when using this widget in production. So use the cpquire_test to do things
@@ -74,14 +74,14 @@ cprequire_test(["inline:com-chilipeppr-widget-nodemcusamples"], function(myWidge
 } /*end_test*/ );
 
 // This is the main definition of your widget. Give it a unique name.
-cpdefine("inline:com-chilipeppr-widget-nodemcusamples", ["chilipeppr_ready", /* other dependencies here */ ], function() {
+cpdefine("inline:com-chilipeppr-widget-nodemcu-docs", ["chilipeppr_ready", /* other dependencies here */ ], function() {
     return {
         /**
          * The ID of the widget. You must define this and make it unique.
          */
-        id: "com-chilipeppr-widget-nodemcusamples", // Make the id the same as the cpdefine id
-        name: "Widget / NodeMCU Samples", // The descriptive name of your widget.
-        desc: "Load sample code for the NodeMCU Lua programming language.", // A description of what your widget does
+        id: "com-chilipeppr-widget-nodemcu-docs", // Make the id the same as the cpdefine id
+        name: "Widget / NodeMCU Docs & Install", // The descriptive name of your widget.
+        desc: "An informational widget with install information and links to documentation for NodeMCU and Lua.", // A description of what your widget does
         url: "(auto fill by runme.js)",       // The final URL of the working widget as a single HTML file with CSS and Javascript inlined. You can let runme.js auto fill this if you are using Cloud9.
         fiddleurl: "(auto fill by runme.js)", // The edit URL. This can be auto-filled by runme.js in Cloud9 if you'd like, or just define it on your own to help people know where they can edit/fork your widget
         githuburl: "(auto fill by runme.js)", // The backing github repo
@@ -116,7 +116,7 @@ cpdefine("inline:com-chilipeppr-widget-nodemcusamples", ["chilipeppr_ready", /* 
             // Define a key:value pair here as strings to document what signals you publish to
             // that are owned by foreign/other widgets.
             // '/jsonSend': 'Example: We send Gcode to the serial port widget to do stuff with the CNC controller.'
-            '/com-chilipeppr-widget-luaeditor/loadScript': 'When we send this signal the Lua Editor listens for it and loads this file into the editor.'
+            //'/com-chilipeppr-widget-luaeditor/loadScript': 'When we send this signal the Lua Editor listens for it and loads this file into the editor.'
         },
         /**
          * Document the foreign subscribe signals, i.e. signals owned by other widgets
