@@ -173,7 +173,8 @@ cprequire_test(["inline:com-chilipeppr-widget-esp32-docs"], function(myWidget) {
 
     chilipeppr.load(
         "#testDivForFlashMessageWidget",
-        "http://fiddle.jshell.net/chilipeppr/90698kax/show/light/",
+        "http://raw.githubusercontent.com/chilipeppr/element-flash/master/auto-generated-widget.html",
+        // "http://fiddle.jshell.net/chilipeppr/90698kax/show/light/",
         function() {
             console.log("mycallback got called after loading flash msg module");
             cprequire(["inline:com-chilipeppr-elem-flashmsg"], function(fm) {
@@ -462,7 +463,10 @@ cpdefine("inline:com-chilipeppr-widget-esp32-docs", ["chilipeppr_ready", /* othe
             });
 
             var that = this;
-            chilipeppr.load("http://fiddle.jshell.net/chilipeppr/zMbL9/show/light/", function() {
+            chilipeppr.load(
+                "http://raw.githubusercontent.com/chilipeppr/widget-pubsubviewer/master/auto-generated-widget.html",
+                // "http://fiddle.jshell.net/chilipeppr/zMbL9/show/light/", 
+                function() {
                 require(['inline:com-chilipeppr-elem-pubsubviewer'], function(pubsubviewer) {
                     pubsubviewer.attachTo($(topCssSelector + ' .panel-heading .dropdown-menu'), that);
                 });
@@ -520,7 +524,7 @@ cpdefine("inline:com-chilipeppr-widget-esp32-docs", ["chilipeppr_ready", /* othe
             <div class="tab-content">
                 <div class="tab-pane active" id="com-chilipeppr-widget-tab-nodemcu-firmware">
                     
-                    <div class="billboard-img" style="height:100px; background-image: url('https://raw.githubusercontent.com/nodemcu/nodemcu-devkit-v1.0/master/Documents/NodeMCU_DEVKIT_1.0.jpg');">
+                    <div class="billboard-img" style="height:100px; background-image: url('https://raw.githubusercontent.com/chilipeppr/widget-esp32-docs/master/Wemos-Lolin32-Large.jpg');">
                     </div>
                     <div style="padding:10px;">
                         <p>Install Latest Firmware on your ESP32 for Lua (NodeMCU)</p>
