@@ -34,7 +34,7 @@ requirejs.config({
     }
 });
 
-cprequire_test(["inline:com-chilipeppr-widget-nodemcu-docs"], function(myWidget) {
+cprequire_test(["inline:com-chilipeppr-widget-esp32-docs"], function(myWidget) {
 
     // Test this element. This code is auto-removed by the chilipeppr.load()
     // when using this widget in production. So use the cpquire_test to do things
@@ -74,12 +74,12 @@ cprequire_test(["inline:com-chilipeppr-widget-nodemcu-docs"], function(myWidget)
 } /*end_test*/ );
 
 // This is the main definition of your widget. Give it a unique name.
-cpdefine("inline:com-chilipeppr-widget-nodemcu-docs", ["chilipeppr_ready", /* other dependencies here */ ], function() {
+cpdefine("inline:com-chilipeppr-widget-esp32-docs", ["chilipeppr_ready", /* other dependencies here */ ], function() {
     return {
         /**
          * The ID of the widget. You must define this and make it unique.
          */
-        id: "com-chilipeppr-widget-nodemcu-docs", // Make the id the same as the cpdefine id
+        id: "com-chilipeppr-widget-esp32-docs", // Make the id the same as the cpdefine id
         name: "Widget / NodeMCU Docs & Install", // The descriptive name of your widget.
         desc: "An informational widget with install information and links to documentation for NodeMCU and Lua.", // A description of what your widget does
         url: "(auto fill by runme.js)",       // The final URL of the working widget as a single HTML file with CSS and Javascript inlined. You can let runme.js auto fill this if you are using Cloud9.

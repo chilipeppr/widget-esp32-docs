@@ -1,4 +1,4 @@
-# com-chilipeppr-widget-nodemcu-docs
+# com-chilipeppr-widget-esp32-docs
 An informational widget with install information and links to documentation for NodeMCU and Lua.
 
 ![alt text](screenshot.png "Screenshot")
@@ -11,13 +11,13 @@ not conflict with other ChiliPeppr widgets.
 
 | Item                  | Value           |
 | -------------         | ------------- | 
-| ID                    | com-chilipeppr-widget-nodemcu-docs |
+| ID                    | com-chilipeppr-widget-esp32-docs |
 | Name                  | Widget / NodeMCU Docs & Install |
 | Description           | An informational widget with install information and links to documentation for NodeMCU and Lua. |
-| chilipeppr.load() URL | http://raw.githubusercontent.com/chilipeppr/widget-nodemcu-docs/master/auto-generated-widget.html |
-| Edit URL              | http://ide.c9.io/chilipeppr/widget-nodemcu-docs |
-| Github URL            | http://github.com/chilipeppr/widget-nodemcu-docs |
-| Test URL              | https://preview.c9users.io/chilipeppr/widget-nodemcu-docs/widget.html |
+| chilipeppr.load() URL | http://raw.githubusercontent.com/chilipeppr/widget-esp32-docs/master/auto-generated-widget.html |
+| Edit URL              | http://ide.c9.io/chilipeppr/widget-esp32-docs |
+| Github URL            | http://github.com/chilipeppr/widget-esp32-docs |
+| Test URL              | https://preview.c9users.io/chilipeppr/widget-esp32-docs/widget.html |
 
 ## Example Code for chilipeppr.load() Statement
 
@@ -29,20 +29,20 @@ back the instance of it.
 
 ```javascript
 // Inject new div to contain widget or use an existing div with an ID
-$("body").append('<' + 'div id="myDivWidgetNodemcuDocs"><' + '/div>');
+$("body").append('<' + 'div id="myDivWidgetEsp32Docs"><' + '/div>');
 
 chilipeppr.load(
-  "#myDivWidgetNodemcuDocs",
-  "http://raw.githubusercontent.com/chilipeppr/widget-nodemcu-docs/master/auto-generated-widget.html",
+  "#myDivWidgetEsp32Docs",
+  "http://raw.githubusercontent.com/chilipeppr/widget-esp32-docs/master/auto-generated-widget.html",
   function() {
-    // Callback after widget loaded into #myDivWidgetNodemcuDocs
+    // Callback after widget loaded into #myDivWidgetEsp32Docs
     // Now use require.js to get reference to instantiated widget
     cprequire(
-      ["inline:com-chilipeppr-widget-nodemcu-docs"], // the id you gave your widget
-      function(myObjWidgetNodemcuDocs) {
+      ["inline:com-chilipeppr-widget-esp32-docs"], // the id you gave your widget
+      function(myObjWidgetEsp32Docs) {
         // Callback that is passed reference to the newly loaded widget
-        console.log("Widget / NodeMCU Docs & Install just got loaded.", myObjWidgetNodemcuDocs);
-        myObjWidgetNodemcuDocs.init();
+        console.log("Widget / NodeMCU Docs & Install just got loaded.", myObjWidgetEsp32Docs);
+        myObjWidgetEsp32Docs.init();
       }
     );
   }
@@ -132,7 +132,7 @@ The table below shows, in order, the methods and properties inside the widget/el
           </tr>
       </thead>
       <tbody>
-      <tr valign="top"><td>id</td><td>string</td><td>"com-chilipeppr-widget-nodemcu-docs"<br><br>The ID of the widget. You must define this and make it unique.</td></tr><tr valign="top"><td>name</td><td>string</td><td>"Widget / NodeMCU Docs & Install"</td></tr><tr valign="top"><td>desc</td><td>string</td><td>"An informational widget with install information and links to documentation for NodeMCU and Lua."</td></tr><tr valign="top"><td>url</td><td>string</td><td>"http://raw.githubusercontent.com/chilipeppr/widget-nodemcu-docs/master/auto-generated-widget.html"</td></tr><tr valign="top"><td>fiddleurl</td><td>string</td><td>"http://ide.c9.io/chilipeppr/widget-nodemcu-docs"</td></tr><tr valign="top"><td>githuburl</td><td>string</td><td>"http://github.com/chilipeppr/widget-nodemcu-docs"</td></tr><tr valign="top"><td>testurl</td><td>string</td><td>"http://widget-nodemcu-docs-chilipeppr.c9users.io/widget.html"</td></tr><tr valign="top"><td>publish</td><td>object</td><td>Please see docs above.<br><br>Define the publish signals that this widget/element owns or defines so that
+      <tr valign="top"><td>id</td><td>string</td><td>"com-chilipeppr-widget-esp32-docs"<br><br>The ID of the widget. You must define this and make it unique.</td></tr><tr valign="top"><td>name</td><td>string</td><td>"Widget / NodeMCU Docs & Install"</td></tr><tr valign="top"><td>desc</td><td>string</td><td>"An informational widget with install information and links to documentation for NodeMCU and Lua."</td></tr><tr valign="top"><td>url</td><td>string</td><td>"http://raw.githubusercontent.com/chilipeppr/widget-esp32-docs/master/auto-generated-widget.html"</td></tr><tr valign="top"><td>fiddleurl</td><td>string</td><td>"http://ide.c9.io/chilipeppr/widget-esp32-docs"</td></tr><tr valign="top"><td>githuburl</td><td>string</td><td>"http://github.com/chilipeppr/widget-esp32-docs"</td></tr><tr valign="top"><td>testurl</td><td>string</td><td>"http://widget-esp32-docs-chilipeppr.c9users.io/widget.html"</td></tr><tr valign="top"><td>publish</td><td>object</td><td>Please see docs above.<br><br>Define the publish signals that this widget/element owns or defines so that
 other widgets know how to subscribe to them and what they do.</td></tr><tr valign="top"><td>subscribe</td><td>object</td><td>Please see docs above.<br><br>Define the subscribe signals that this widget/element owns or defines so that
 other widgets know how to subscribe to them and what they do.</td></tr><tr valign="top"><td>foreignPublish</td><td>object</td><td>Please see docs above.<br><br>Document the foreign publish signals, i.e. signals owned by other widgets
 or elements, that this widget/element publishes to.</td></tr><tr valign="top"><td>foreignSubscribe</td><td>object</td><td>Please see docs above.<br><br>Document the foreign subscribe signals, i.e. signals owned by other widgets

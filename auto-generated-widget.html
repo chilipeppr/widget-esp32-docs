@@ -16,7 +16,7 @@
     <style type='text/css'>
 /* CSS for ChiliPeppr Widget */
 
-#com-chilipeppr-widget-nodemcu-docs {
+#com-chilipeppr-widget-esp32-docs {
    
 }
 
@@ -24,10 +24,10 @@
 /*    padding:0;*/
 /*    margin:0;*/
 /*}*/
-#com-chilipeppr-widget-nodemcu-docs .nav-tabs>li>a {
+#com-chilipeppr-widget-esp32-docs .nav-tabs>li>a {
     padding: 2px 6px;
 }
-#com-chilipeppr-widget-nodemcu-docs .panel-body {
+#com-chilipeppr-widget-esp32-docs .panel-body {
     /*padding:9px 8px;*/
 }
 
@@ -151,7 +151,7 @@ requirejs.config({
     }
 });
 
-cprequire_test(["inline:com-chilipeppr-widget-nodemcu-docs"], function(myWidget) {
+cprequire_test(["inline:com-chilipeppr-widget-esp32-docs"], function(myWidget) {
 
     // Test this element. This code is auto-removed by the chilipeppr.load()
     // when using this widget in production. So use the cpquire_test to do things
@@ -191,18 +191,18 @@ cprequire_test(["inline:com-chilipeppr-widget-nodemcu-docs"], function(myWidget)
 } /*end_test*/ );
 
 // This is the main definition of your widget. Give it a unique name.
-cpdefine("inline:com-chilipeppr-widget-nodemcu-docs", ["chilipeppr_ready", /* other dependencies here */ ], function() {
+cpdefine("inline:com-chilipeppr-widget-esp32-docs", ["chilipeppr_ready", /* other dependencies here */ ], function() {
     return {
         /**
          * The ID of the widget. You must define this and make it unique.
          */
-        id: "com-chilipeppr-widget-nodemcu-docs", // Make the id the same as the cpdefine id
+        id: "com-chilipeppr-widget-esp32-docs", // Make the id the same as the cpdefine id
         name: "Widget / NodeMCU Docs & Install", // The descriptive name of your widget.
         desc: "An informational widget with install information and links to documentation for NodeMCU and Lua.", // A description of what your widget does
-        url: "http://raw.githubusercontent.com/chilipeppr/widget-nodemcu-docs/master/auto-generated-widget.html",       // The final URL of the working widget as a single HTML file with CSS and Javascript inlined. You can let runme.js auto fill this if you are using Cloud9.
-        fiddleurl: "http://ide.c9.io/chilipeppr/widget-nodemcu-docs", // The edit URL. This can be auto-filled by runme.js in Cloud9 if you'd like, or just define it on your own to help people know where they can edit/fork your widget
-        githuburl: "http://github.com/chilipeppr/widget-nodemcu-docs", // The backing github repo
-        testurl: "http://widget-nodemcu-docs-chilipeppr.c9users.io/widget.html",   // The standalone working widget so can view it working by itself
+        url: "http://raw.githubusercontent.com/chilipeppr/widget-esp32-docs/master/auto-generated-widget.html",       // The final URL of the working widget as a single HTML file with CSS and Javascript inlined. You can let runme.js auto fill this if you are using Cloud9.
+        fiddleurl: "http://ide.c9.io/chilipeppr/widget-esp32-docs", // The edit URL. This can be auto-filled by runme.js in Cloud9 if you'd like, or just define it on your own to help people know where they can edit/fork your widget
+        githuburl: "http://github.com/chilipeppr/widget-esp32-docs", // The backing github repo
+        testurl: "http://widget-esp32-docs-chilipeppr.c9users.io/widget.html",   // The standalone working widget so can view it working by itself
         /**
          * Define pubsub signals below. These are basically ChiliPeppr's event system.
          * ChiliPeppr uses amplify.js's pubsub system so please refer to docs at
@@ -478,7 +478,7 @@ cpdefine("inline:com-chilipeppr-widget-nodemcu-docs", ["chilipeppr_ready", /* ot
 </head>
 
 <body>
-    <div id="com-chilipeppr-widget-nodemcu-docs" class="panel panel-default">
+    <div id="com-chilipeppr-widget-esp32-docs" class="panel panel-default">
         <div class="panel-heading ">
 
             <div class="btn-toolbar pull-right" role="toolbar">
@@ -523,20 +523,16 @@ cpdefine("inline:com-chilipeppr-widget-nodemcu-docs", ["chilipeppr_ready", /* ot
                     <div class="billboard-img" style="height:100px; background-image: url('https://raw.githubusercontent.com/nodemcu/nodemcu-devkit-v1.0/master/Documents/NodeMCU_DEVKIT_1.0.jpg');">
                     </div>
                     <div style="padding:10px;">
-                        <p>Install Latest Firmware on your NodeMCU or ESP8266</p>
+                        <p>Install Latest Firmware on your ESP32 for Lua (NodeMCU)</p>
                         <ol>
-                            <li>ChiliPeppr has several pre-compiled firmware versions available
+                            <li>ChiliPeppr has a pre-compiled firmware available
                             on the Github repository for this workspace.
-                            <a href="https://github.com/chilipeppr/workspace-nodemcu/releases">https://github.com/chilipeppr/workspace-nodemcu/releases</a></li>
-                            <li>You can also build your own at
-                                <a href="http://nodemcu-build.com/index.php">NodeMCU-build.com</a> but this service can
-                                sometimes be down. You may also consider following their instructions for 
-                                <a href="https://hub.docker.com/r/marcelstoer/nodemcu-build/">setting up 
-                                Docker and building on your own local box</a>.
+                            <a href="https://github.com/chilipeppr/workspace-esp32-lua/releases">https://github.com/chilipeppr/workspace-esp32-lua/releases</a></li>
+                            <li>Dowload the esp32tool.zip from Github release page, extract it, then run:
+                            <pre>esptool.py --port COM7 write_flash 0x1000 bootloader.bin 0x10000 NodeMCU-esp32-adc-bit-bluetooth-can-dht-i2c-ledc-u8g2-ws2812.bin 0x8000 partitions_singleapp.bin</pre>
+                            If you need help on installing and running esptool.py then visit <a href="https://github.com/espressif/esptool">https://github.com/espressif/esptool</a>
                             </li>
-
-                            <li>You can flash the firmware by using
-                                <a href="https://github.com/nodemcu/nodemcu-flasher">nodemcu-flasher</a> on Windows or <a href="https://github.com/themadinventor/esptool">Python Esptool</a> on Linux. You can also try the flasher tools from <a href="http://bbs.espressif.com/viewtopic.php?f=5&t=433">Espressif Flash Download Tools</a>                                    page.</li>
+                            <li>For further help, <a href="">watch the firmware install video tutorial on Youtube</a>.</li>
                         </ol>
 
                         
@@ -550,7 +546,7 @@ cpdefine("inline:com-chilipeppr-widget-nodemcu-docs", ["chilipeppr_ready", /* ot
                     
                     <p style="padding-top:10px">Documentation</p>
                         <ol>
-                            <li><a href="http://nodemcu.readthedocs.io" target="_blank">http://nodemcu.readthedocs.io</a></li>
+                            <li><a href="https://nodemcu.readthedocs.io/en/dev-esp32/" target="_blank">https://nodemcu.readthedocs.io/en/dev-esp32/</a></li>
                         </ol>
                 </div>
 
