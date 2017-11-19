@@ -95,3 +95,13 @@
     border:0px solid red; 
     position: relative;
 }
+.btn-group-codeexpander {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+}
+.code-sample-collapsed {
+    max-height: 48px;
+    overflow: hidden;
+    border-bottom: 1px silver dashed;
+}

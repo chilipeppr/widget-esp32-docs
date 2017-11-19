@@ -139,8 +139,77 @@ cpdefine("inline:com-chilipeppr-widget-esp32-docs", ["chilipeppr_ready", /* othe
             this.btnSetup();
             //this.initTabs();
             this.forkSetup();
+            this.setupSendToEditorBtns();
 
             console.log("I am done being initted.");
+        },
+        /**
+         * Setup code to be sent to editor.
+         * This method looks for all send to editor buttons and turns on a click event.
+         */
+        setupSendToEditorBtns: function() {
+            console.log("setting up send to editor buttons");
+            $('#' + this.id + ' .btn-sendtoeditor').click(this.onSendToEditorClick.bind(this));
+            
+            // Code sample hide/show body
+            var that = this;
+            $('#' + this.id + ' .btn-collapsecode').click(function(evt) {
+                console.log("hide/unhide code sample. evt:", evt);
+                var btnEl = $(evt.currentTarget);
+                console.log("btnEl", btnEl);
+                var pEl = btnEl.parent().parent().parent();
+                console.log("pEl:", pEl);
+                
+                var codeEl = pEl.find(' .code-sample-wrapper');
+                if (codeEl.hasClass('code-sample-collapsed')) {
+                    // it's hidden, unhide
+                    console.log("unhide")
+                    codeEl.removeClass('code-sample-collapsed');
+                    btnEl.find('span').addClass('glyphicon-chevron-up');
+                    btnEl.find('span').removeClass('glyphicon-chevron-down');
+
+                }
+                else {
+                    // hide
+                    console.log("hide");
+                    codeEl.addClass('code-sample-collapsed');
+                    btnEl.find('span').removeClass('glyphicon-chevron-up');
+                    btnEl.find('span').addClass('glyphicon-chevron-down');
+                }
+            });
+        },
+        scriptCtr: 1,
+        onSendToEditorClick: function(evt) {
+            console.log("got onSendToEditorClick. evt:", evt);
+            
+            var parentEl = $(evt.currentTarget).parent().parent().parent().find('.language-javascript');
+            console.log("parentEl:", parentEl);
+            
+            // see if we have multiple code blocks or just one
+            var cnt = parentEl.length;
+            console.log("cnt of code blocks:", cnt);
+            
+            for (var i = 0; i < parentEl.length; i++) {
+                var codeEl = $(parentEl[i]);
+                console.log("codeEl:", codeEl);
+                
+                var txt = codeEl.text();
+                // console.log("code:", txt);
+                
+                // get file name from data attribute
+                var filename = codeEl.attr('data-filename');
+                console.log("filename:", filename);
+                
+                var obj = {
+                    name: filename + ".lua",
+                    content: txt
+                }
+                chilipeppr.publish("/com-chilipeppr-widget-luaeditor/loadScript", obj);
+                // this.scriptCtr++;
+
+            }
+            
+            return;
         },
         /**
          * Call this method from init to setup all the buttons when this widget
