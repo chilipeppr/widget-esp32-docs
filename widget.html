@@ -126,7 +126,7 @@
                             <figure class="highlight">
                                 <pre><code class="language-javascript" 
                                 data-lang="javascript" data-filename="blink_led"
-                                >-- Blink built-in LED on Wemos
+                                >-- ChiliPeppr - Blink built-in LEDs on ESP32 devices
 m = {}
 
 -- Config
@@ -191,7 +191,7 @@ m.mytimer:alarm(m.duration, tmr.ALARM_AUTO, m.toggleLED)</code></pre>
                             <figure class="highlight">
                                 <pre><code class="language-javascript" 
                                 data-lang="javascript" data-filename="ws281x_leds"
-                                >-- WS2812/WS2813 LED library
+                                >-- ChiliPeppr - WS2812/WS2813 LED library
 
 -- local ZLed = {}
 ZLed = {}
@@ -390,7 +390,8 @@ ZLed.chase(255, 0, 0)
                             <figure class="highlight">
                                 <pre><code class="language-javascript" 
                                 data-lang="javascript" data-filename="json_test"
-                                >json = require('json')
+                                >-- ChiliPeppr - Test your JSON library
+json = require('json')
 
 -- Decode: Test a success
 data = '{"Cmd":"GetQ"}'
@@ -820,6 +821,153 @@ return json
                         </div>
                     </div>
                     <!-- end code sample -->
+
+                    <!-- begin code sample -->
+                    <div class="code-sample-with-send">
+                        <div class="bs-example" data-example-id="inline-code"> 
+                            <div class="bs-example-title">Web Server</div>
+                            Run a web server on your ESP32 to control some GPIO.
+                            <div class="btn-group upper-right-btn-group" role="group">
+                                <!--<button type="button" class="btn btn-sm btn-default xbtn-clipboard">Run</button>-->
+                                <button type="button" class="btn btn-sm btn-default xbtn-clipboard btn-sendtoeditor"><span class="glyphicon glyphicon-edit"></span> Editor</button>
+                            </div>
+    
+                        </div>
+                        <div class="code-sample-wrapper code-sample-collapsed upper-right-buttons">
+                            <figure class="highlight">
+                                <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="esp32_test_webserver"
+                                >-- ChiliPeppr - Test your web server
+
+ws = require("esp32_webserver")
+ws.start()
+
+function fuelOn()
+  print("turning on fuel")
+  -- toggle a GPIO port
+end
+
+function fuelOff()
+  print("turning off fuel")
+  -- toggle a GPIO port
+end
+
+ws.registerCallbackOn(fuelOn)
+ws.registerCallbackOff(fuelOff)
+
+</code></pre>
+                                <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="esp32_webserver"
+                                >-- ChiliPeppr - Create webserver and host a web page
+
+local w = {}
+
+w.wifiSsid = "NETGEAR-main"
+w.wifiPwd = "****"
+
+w.callbackOn = nil
+w.callbackOff = nil
+
+function w.registerCallbackOn(f)
+  w.callbackOn = f
+end
+
+function w.registerCallbackOff(f)
+  w.callbackOff = f
+end
+
+function w.start()
+  --register callback
+  wifi.sta.on("got_ip", function(ev, info)
+    print("NodeMCU IP config:", info.ip, "netmask", info.netmask, "gw", info.gw)
+  
+    print('You now have a webserver running at: http://' .. info.ip)
+    print("Go visit it and see you get a nice callback to do stuff with like control GPIO ports from the web.")
+  end)
+  
+  --unregister callback
+  -- wifi.sta.on("got_ip", nil)
+  
+  -- set as station
+  wifi.mode(1)
+  -- start wifi
+  wifi.start()
+  
+  --connect to Access Point (DO save config to flash)
+  station_cfg={}
+  station_cfg.ssid=w.wifiSsid
+  station_cfg.pwd=w.wifiPwd
+  wifi.sta.config(station_cfg, true)
+  print("Saved wifi name/password")
+  
+  srv = net.createServer(net.TCP)
+
+  srv:listen(80, function(conn)
+    conn:on("receive", w.receiver)
+  end)
+
+end
+
+function w.receiver(sck, data)
+
+  print("DATA: " .. data)
+  
+  -- local response = {}
+
+  -- if you're sending back HTML over HTTP you'll want something like this instead
+  local response = {"HTTP/1.0 200 OK\r\nServer: ChiliPeppr ESP32\r\n"}
+  
+  -- SEE IF DATA IS WANTING TO TURN ON ANYTHING
+  if (data:find("^GET /on" )) then
+    print("being asked to turn on fuel")
+    response[#response + 1] = "Access-Control-Allow-Origin: *\r\nContent-Type: application/json\r\n\r\n"
+    -- response[#response + 1] = "<b>Turning on fuel</b><br><br>"
+    response[#response + 1] = '{"isFuelOn": true}'
+    w.callbackOn()
+  elseif (data:find("^GET /off" )) then
+    print("being asked to turn off fuel")
+    response[#response + 1] = "Access-Control-Allow-Origin: *\r\nContent-Type: application/json\r\n\r\n"
+    -- response[#response + 1] = "<b>Turning off fuel</b><br><br>"
+    response[#response + 1] = '{"isFuelOn": false}'
+    w.callbackOff()
+  else
+    response[#response + 1] = "Content-Type: text/html\r\n\r\n"
+    response[#response + 1] = '<a href="/on">Turn on fuel</a><br>'
+    response[#response + 1] = '<a href="/off">Turn off fuel</a><br>'
+    response[#response + 1] = "<br>even more data "
+    response[#response + 1] = "e.g. you coulud content read from a file"
+  
+  end
+
+  
+  -- sends and removes the first element from the 'response' table
+  local function send(localSocket)
+    if #response > 0 then
+      localSocket:send(table.remove(response, 1))
+    else
+      localSocket:close()
+      response = nil
+    end
+  end
+
+  -- triggers the send() function again once the first chunk of data was sent
+  sck:on("sent", send)
+
+  send(sck)
+end
+
+return w
+</code></pre>
+                            </figure>
+                            <div class="btn-group btn-group-codeexpander">
+                                <button type="button" class="btn btn-xs btn-default btn-collapsecode"><span class="glyphicon glyphicon-chevron-down"></span>
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- end code sample -->
+
                 </div>
 
                 <!-- Tab GPIO -->
