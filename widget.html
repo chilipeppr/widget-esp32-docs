@@ -80,13 +80,26 @@
                     <div style="padding:10px;">
                         <p>Install Latest Firmware on your ESP32 for Lua (NodeMCU)</p>
                         <ol>
-                            <li>ChiliPeppr has a pre-compiled firmware available
-                            on the Github repository for this workspace.
-                            <a target="_blank" href="https://github.com/chilipeppr/workspace-esp32-lua/releases">https://github.com/chilipeppr/workspace-esp32-lua/releases</a></li>
-                            <li>Dowload the esp32tool.zip from Github release page, extract it, then run:
-                            <pre>esptool.py --port COM7 write_flash 0x1000 bootloader.bin 0x10000 NodeMCU-esp32-adc-bit-bluetooth-can-dht-i2c-ledc-u8g2-ws2812.bin 0x8000 partitions_singleapp.bin</pre>
-                            If you need help on installing and running esptool.py then visit <a target="_blank" href="https://github.com/espressif/esptool">https://github.com/espressif/esptool</a>
+                            <li>Dowload the esp32tool.zip from Github release page.
+                            ChiliPeppr has a pre-compiled firmware for ESP32 for Lua in this file
+                            on the Github repository for this workspace in a file called esp32tool.zip.
+                            <a target="_blank" href="https://github.com/chilipeppr/workspace-esp32-lua/releases">https://github.com/chilipeppr/workspace-esp32-lua/releases</a>.
                             </li>
+                            <li>You also need to have <a href="https://www.python.org/downloads/">Python 2.7 installed</a>.</li>
+                            <li>Once you have Python installed and have downloaded esp32tool.zip, extract esp32tool.zip, then
+                            open a terminal window or command line to the directory you extracted esp32tool.zip into.</li>
+                            <li>Install esptool.py from pip from your command line by running the command below. 
+                            <pre>pip install esptool</pre>
+                            If you need extra help on installing and running esptool.py then visit <a target="_blank" href="https://github.com/espressif/esptool">https://github.com/espressif/esptool</a>
+                            
+                            </li>
+                            <li>
+                            Then run the command below, but make sure to set your serial port to the correct port your ESP32.
+                            <pre>esptool.py --port COM7 write_flash 0x1000 bootloader.bin 0x10000 NodeMCU-esp32-adc-bit-bluetooth-can-dht-i2c-ledc-u8g2-ws2812.bin 0x8000 partitions_singleapp.bin</pre>
+                            
+                            </li>
+                            <li>You should now have a fully programmed ESP32 ready to use in this workspace. Hit refresh in 
+                            the Serial Port JSON Server widget and open the serial port to your device by clicking on it.</li>
                             <li>For further help, <a target="_blank" href="">watch the firmware install video tutorial on Youtube</a>.</li>
                         </ol>
 
