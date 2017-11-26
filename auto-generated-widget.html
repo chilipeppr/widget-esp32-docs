@@ -3877,6 +3877,2073 @@ end
                     </div>
                     <!-- end code sample -->
 
+                    <!-- CNC Joystick -->
+                    <!-- begin code sample -->
+                    <div class="code-sample-with-send">
+                        <div class="bs-example" data-example-id="inline-code"> 
+                            <div class="bs-example-title">ChiliPeppr CNC TinyG Wireless Joystick</div>
+                            A wireless CNC jog controller for ChiliPeppr's TinyG workspace. Use an analog joystick 
+                            to jog your CNC on the XY axis from a battery powered ESP32.
+                            <div class="btn-group upper-right-btn-group" role="group">
+                                <!--<button type="button" class="btn btn-sm btn-default xbtn-clipboard">Run</button>-->
+                                <button type="button" class="btn btn-sm btn-default xbtn-clipboard btn-sendtoeditor"><span class="glyphicon glyphicon-edit"></span> Editor</button>
+                            </div>
+    
+                        </div>
+                        <div class="code-sample-wrapper code-sample-collapsed upper-right-buttons">
+                            <figure class="highlight">
+                            <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="chilipeppr_tinyg_v2"
+                                >-- ChiliPeppr Active TinyG SPJS Utility
+-- Finds an SPJS on the network with an active TinyG connection
+-- and reports that with a callback
+--
+-- To use:
+-- cputil = require("chilipeppr_tinyg")
+-- cputil.on("tinyg_found", function(info)
+--   print("Found TinyG. ip:", info.ip, "name:", info.Name)
+-- end)
+-- cputil.init()
+
+cayenn = require("cayenn_simplified")
+wif = require("esp32_wifi")
+ws = require('esp32_websocket')
+
+local m = {}
+m.opts = {}
+m.opts.Name = "Joystick for TinyG"
+m.opts.Desc = "This joystick auto-connects to SPJS and sends GCode commands to jog"
+-- m.opts.Icon = "https://www.robotgeek.com/shared/images/PImages/rg-joystick-a.jpg"
+m.opts.Icon = "https://raw.githubusercontent.com/chilipeppr/widget-cayenn/master/joystick.png"
+-- store server ip's
+m.servers = {}
+m.isCheckingServer = false
+m.serverBeingChecked = nil
+
+-- store active tinyg 
+m.tinyg = nil
+
+-- define commands supported
+m.cmds = {
+  "GetCmds", "Mem"
+}
+
+function m.init()
+  if wif and wif.isConnected() then 
+    print("Wifi already connected, so sending announce")
+    cayenn.setIp(wif.getIp())
+    cayenn.init(m.opts)
+    cayenn.sendAnnounceBroadcast()
+  else
+    print("Setting up wifi")
+    wif.init()
+  end
+end
+
+m.onTinyGFound = nil
+function m.on(method, func)
+  if method == "tinyg_found" then
+    m.onTinyGFound = func 
+  end 
+end
+
+function m.onFoundTinyG()
+  -- Since we found our tinyg, we can now allow joystick commands
+  
+  -- unregister the websocket on receive callback to reduce load 
+  ws.on("receive", nil)
+  
+  if m.onTinyGFound then 
+    node.task.post(node.task.LOW_PRIORITY, function()
+      m.onTinyGFound(m.tinyg, ws) 
+    end)
+  end
+ 
+end
+
+function m.checkForTinyG(server)
+  if m.isCheckingServer then
+    print("Already checking another server right now. Come back later.")
+    return
+  end 
+  
+  m.isCheckingServer = true
+  -- create a websocket and check if the server has a tinyg on it 
+  m.servers[server] = "checking"
+  m.serverBeingChecked = server
+  ws.connect("ws://" .. server .. ":8989/ws")
+end 
+
+function m.onGotServer(server)
+  node.task.post(node.task.LOW_PRIORITY, function()
+    print("Going to connect to websocket on " .. server .. " and see if TinyG exists...")
+    m.checkForTinyG(server)
+  end)
+end
+
+m.buffer = ""
+ws.on("receive", function(data, fin)
+  -- fin of true or nil means you got all data
+  -- fin of false means extended data will come in
+  
+  -- for safety while debugging, don't print serial port data or
+  -- we get into a loop
+  if string.match(data, '^{"P":') ~= nil or string.match(data, '^{"Cmd":') ~= nil then
+    -- ignore
+    return
+  else 
+    -- print("Got data:" .. data .. ", fin:", fin)
+  end
+  
+  if fin == false then
+    print("Expecting more data...")
+    m.buffer = data
+    return
+  else 
+    m.buffer = m.buffer .. data
+  end 
+  
+  -- print("Doing test of json on payload")
+  -- get json 
+  local jsonStr = string.match(m.buffer, "^{.*} *$")
+  if jsonStr == nil then  
+    return
+  end 
+
+  -- print("JSON:", json)
+  local ports = json.decode(jsonStr)
+  if ports and ports.SerialPorts then
+    for k,v in pairs(ports.SerialPorts) do 
+      print(k, v.Name, v.Friendly, v.IsOpen, v.IsPrimary, v.BufferAlgorithm)
+      if v.IsOpen and v.IsPrimary then 
+        -- we have a candidate
+        if v.BufferAlgorithm == "tinyg" or v.BufferAlgorithm == "tinygg2" then
+          print("We found an active TinyG. Awesome!")
+          m.tinyg = v
+          m.tinyg.ip = m.serverBeingChecked
+        end 
+      end
+    end
+    
+    -- done checking server
+    print("Done checking server:", m.serverBeingChecked)
+    if m.tinyg ~= nil then
+      print("Active TinyG:",m.tinyg.ip,m.tinyg.Name)
+      m.onFoundTinyG()
+    else
+      print("TODO: Need to search next server.")
+    end
+
+  else 
+    -- print("Got JSON, but not of serial ports")
+  end 
+  
+  m.buffer = ""
+  
+end)
+ws.on("connection", function(host, port, path)
+  print("Websocket connected to host:", host, "port:", port, "path:", path)
+  ws.send("list")
+end)
+ws.on("disconnection", function()
+  print("Websocket got disconnect from:", ws.wsUrl)
+end)
+ws.on("pingsend", function()
+  print("Ping")
+end)
+ws.on("pongrecv", function()
+  print("Got pong. We're alive.")
+end)
+
+-- This is called by Cayenn when an incoming cmd comes in
+-- from the network, i.e. from SPJS.
+function m.onCmd(payload)
+  
+  if payload == nil then 
+    print("Got bad payload")
+    return
+  end 
+  
+  if payload.Cmd and payload.Cmd == "GetCmds" then
+    local resp = {}
+    resp.Resp = "GetCmds"
+    resp.Cmds = m.cmds
+    resp.TransId = payload.TransId
+    cayenn.sendViaTcp(resp, m.servers)
+  elseif payload.Cmd and payload.Cmd == "Mem" then
+    cayenn.sendViaTcp({["TransId"] = payload.TransId, ["Resp"] = payload.Cmd, ["MemRemain"] = node.heap()}, m.servers)
+  elseif payload.Announce and payload.Announce == "i-am-your-server" then
+      -- store this ip so we know what our server is
+      m.servers[payload.ServerIp] = true
+      print("Got a server:" .. json.encode(m.servers))
+      m.onGotServer(payload.ServerIp)
+  else
+    cayenn.sendViaTcp({["TransId"] = payload.TransId, ["Resp"] = payload.Cmd, ["Err"] = "Unsupported cmd"}, m.servers)
+  end
+  
+end
+
+-- This callback is called when an incoming UDP broadcast 
+-- comes in to this device. Typically this is just for 
+-- Cayenn Discover requests to figure out what devices are on 
+-- the network
+function m.onIncomingBroadcast(cmd)
+
+  if cmd and cmd.Cayenn and cmd.Cayenn == "Discover" then 
+    -- Announce our existence
+    cayenn.sendAnnounceBroadcast()
+  end
+end
+
+cayenn.on("command", m.onCmd)
+cayenn.on("broadcast", m.onIncomingBroadcast)
+
+wif.on("connection", function(info)
+  print("Got wifi. IP:", info.ip, "Netmask:", info.netmask, "GW:", info.gw)
+  -- Init Cayenn
+  cayenn.setIp(info.ip) -- set my ip so cayenn knows i'm connected
+  cayenn.init(m.opts)
+end)
+
+wif.on("disconnection", function()
+  print("Disconnected from Wifi. Should get auto-reconnect.")
+end)
+
+
+
+return m
+                            </code></pre>
+                            <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="esp32_websocket"
+                                >-- ChiliPeppr Websocket client library for Lua ESP32
+-- Copyright ChiliPeppr 2017
+-- By John Lauer
+-- This library lets you talk over a websocket using pure Lua
+--
+-- To use this library:
+-- ws = require('esp32_websocket')
+-- ws.on("receive", function(data, fin)
+--   -- fin of 1 or nil means you got all data
+--   -- fin of 0 means extended data will come in
+--   print("Got data:" .. data .. ", fin:", fin)
+-- end)
+-- ws.on("connection", function(host, port, path)
+--   print("Websocket connected to host:", host, "port:", port, "path:", path)
+--   ws.send("list")
+-- end)
+-- ws.on("disconnection", function()
+--   print("Websocket got disconnect from:", ws.wsUrl)
+-- end)
+-- ws.on("pingsend", function()
+--   print("Ping")
+-- end)
+-- ws.on("pongrecv", function()
+--   print("Got pong. We're alive.")
+-- end)
+
+-- -- Use ChiliPeppr wifi library to auto-connect to wifi
+-- wf = require("esp32_wifi")
+-- wf.on("connection", function(info)
+--   print("Got wifi. IP:", info.ip, "Netmask:", info.netmask, "GW:", info.gw)
+--   ws.init(info.ip)
+--   -- This sample websocket is Serial Port JSON server
+--   -- Set this to your own 2nd SPJS, not the local one, or you'll get loopbacks
+--   -- ws.connect("ws://10.0.0.201:8989/ws")
+--   -- Example public websocket server
+--   ws.connect("ws://demos.kaazing.com/echo")
+-- end)
+-- wf.init()
+
+local m = {}
+-- m = {}
+
+-- provide your websocket url 
+m.wsUrl = "ws://10.0.0.104:8989/ws"
+
+-- private properties
+m.isInitted = false
+m.sock = nil
+m.myIp = nil
+m.isConn = false
+m.pingTmr = nil
+
+function m.init(myip)
+  
+  if myip then m.myIp = myip end
+
+  if m.myIp == nil then
+    print("Websocket: You need to connect to wifi, or if you are, give me the IP address of this ESP32 in the init method.")
+  else 
+    print("Websocket initted. My IP: " .. m.myIp)
+    m.isInitted = true
+  end
+end
+
+m.onDataCallback = nil
+m.onConnectedCallback = nil 
+m.onDisconnectCallback = nil
+m.onPingRecvCallback = nil
+m.onPingSendCallback = nil
+m.onPongRecvCallback = nil
+function m.on(method, func)
+  if method == "receive" then
+    m.onDataCallback = func 
+  elseif method == "connection" then 
+    m.onConnectedCallback = func 
+  elseif method == "disconnection" then
+    m.onDisconnectCallback = func
+  elseif method == "pingrecv" then
+    m.onPingRecvCallback = func
+  elseif method == "pingsend" then
+    m.onPingSendCallback = func
+  elseif method == "pongrecv" then
+    m.onPongRecvCallback = func
+  end 
+end
+
+function m.connect(wsurl, callbackOnConnected)
+  
+  if wsurl ~= nil then m.wsUrl = wsurl end
+  if callbackOnConnected ~= nil then m.callbackOnConnected = callbackOnConnected end 
+  
+  -- Get host from websocket url 
+  local host, port, path = string.match(m.wsUrl, 'ws://(.-):(.-)/(.*)')
+  if host and port and path then
+    path = "/" .. path 
+  else
+    host, path = string.match(m.wsUrl, 'ws://(.-)/(.*)')
+    if host and path then
+      port = 80
+      path = "/" .. path 
+    else
+      host = string.match(m.wsUrl, 'ws://(.-)')
+      if host then
+        port = 80
+        path = "/"
+      else
+        print("Could not parse websocket URL?", m.wsUrl)
+      end
+      
+    end
+  end
+  
+  print("Websocket connecting to:", host, "port:", port, "path:", path)
+  
+  local body = "GET " .. path .. " HTTP/1.1\r\n"
+  body = body .. "Host: " .. host .. "\r\n"
+  body = body .. "Upgrade: websocket\r\n"
+  body = body .. "Connection: Upgrade\r\n"
+  body = body .. "Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"
+  body = body .. "Sec-WebSocket-Protocol: chat, superchat\r\n"
+  body = body .. "Sec-WebSocket-Version: 13\r\n"
+  body = body .. "Origin: esp32\r\n"
+  body = body .. "\r\n"
+  
+  local sk = net.createConnection(net.TCP)
+  
+  local buffer
+  local isHdrRecvd = false
+  sk:on("receive", function(sck, c) 
+    -- print("Got receive: " .. c)
+    
+    -- see if we are good to go here 
+    if isHdrRecvd == false then 
+      -- look for header    
+      -- look for HTTP/1.1 101
+      if string.match(c, "HTTP/1.1 101(.*)\r\n\r\n") then 
+        print("Websocket found hdr")
+        isHdrRecvd = true
+        m.isConn = true
+        if m.onConnectedCallback ~= nil then 
+          node.task.post(node.task.LOW_PRIORITY, function()
+            m.onConnectedCallback(host, port, path) 
+          end)
+        end 
+      end 
+    else 
+      -- we can start to deliver incoming data 
+  
+      m.decodeFrame(c)
+    end 
+    
+  end)
+  sk:on("sent", function()
+    -- print("Websocket sent data")
+  end)
+  sk:on('disconnection', function(errcode)
+    print("Websocket disconnection. err:", errcode)
+    m.isConn = false
+    if m.onDisconnectCallback then m.onDisconnectCallback() end 
+  end)
+  sk:on('reconnection', function(errcode)
+    print('Websocket reconnection. err:', errcode)
+  end)
+  sk:on("connection", function(sck, c)
+    -- print("Websocket got connection. Sending TCP msg. body:")
+    print(body)
+    -- m.sock = sck 
+    sck:send(body)
+    
+    m.pingStart()
+  end)
+  
+  m.sock = sk
+  sk:connect(port, host)
+  
+end
+
+-- currently only supports minimal frame decode
+m.lenExpected = 0
+m.buffer = ""
+function m.decodeFrame(frame)
+  
+  local data, fin, opcode
+  
+  if m.lenExpected > 0 then 
+    -- we should just raw append
+    data = frame 
+    -- print("Raw len:", string.len(data))
+    -- m.lenExpected = m.lenExpected - string.len(data)
+    
+    -- append the new data to the previous data
+    m.buffer = m.buffer .. data
+
+  else
+    -- we need to decode the headr from the frame 
+  
+    -- get FIN. 1 means msg is complete. 0 means multi-part
+    fin = string.byte(frame, 1)
+    fin = bit.isset(fin, 7)
+    -- print("FIN:", fin)
+    
+    -- get opcode
+    opcode = string.byte(frame, 1)
+    opcode = bit.clear(opcode, 4, 5, 6, 7) -- clear FIN and RSV
+    -- print("Opcode:", opcode)
+    
+
+    -- get 2nd byte as it has the payload length
+    -- msb of byte is mask, remaining 7 bytes is len 
+    local plen = string.byte(frame, 2)
+    local mask = bit.isset(plen, 7)
+    plen = bit.clear(plen, 7) -- remove the mask from the length
+    -- print("Frame len:", plen, " Mask:", mask)
+    m.lenExpected = plen
+    
+    if mask then 
+      -- print("We should not get a mask from server. Error.")
+      return
+    end
+    
+    data = string.sub(frame, 3) -- remove first 2 bytes, i.e. start at 3rd char
+  
+    if plen == 126 then 
+      -- read next 2 bytes
+      local extlen = string.byte(frame, 3)
+      local extlen2 = string.byte(frame, 4)
+      -- bit shift by one byte extlen 
+      extlen = bit.lshift(extlen, 8)
+      local actualLen = extlen + extlen2
+      -- print("ActualLen:", actualLen)
+      m.lenExpected = actualLen
+      
+      data = string.sub(data, 3) -- remove first 2 bytes
+      
+    elseif plen == 127 then 
+      -- print("Websocket lib does not support longer payloads yet")
+      -- return
+      data = string.sub(data, 5) -- remove first 4 bytes
+    end
+    
+    -- set the buffer to the current data since it's new
+    m.buffer = data
+  end 
+  
+  -- print("Our own count of len:", string.len(data))
+  
+  -- calc m.lenExpected for next time back into this method
+  m.lenExpected = m.lenExpected - string.len(data)
+  -- print("m.lenExpected:", m.lenExpected)
+  
+  -- we need to see if next time into decodeFrame we are just 
+  -- expecting more raw data without a frame header, i.e. happens if 
+  -- the TCP packet is > 1024
+  if m.lenExpected > 0 then
+    print("Websocket expecting " .. m.lenExpected .. " more chars of data")
+  else 
+    -- done with data. do callback 
+    m.lenExpected = 0 
+  
+    -- print("Payload:", data, "opcode:", opcode)
+    
+    if opcode == 0x9 then
+      -- print("ping received")
+      m.onPingRecv(m.buffer, fin, opcode)
+      -- return
+    elseif opcode == 0xA then 
+      -- print("pong received")
+      m.onPongRecv(m.buffer, fin, opcode)
+      -- return
+    else
+      -- this is normal data, handle normally
+      if m.onDataCallback ~= nil then 
+        m.onDataCallback(m.buffer, fin, opcode)
+      end 
+    end
+    -- set buffer to empty for next time into this method
+    m.buffer = ""
+  end
+
+end
+
+-- currently only supports sending short frames less than 126 chars
+function m.send(data)
+  
+  print("Websocket doing send. data:", data)
+  
+  -- data = data .. "\n"
+  
+  if m.isConn == false then 
+    print("Websocket not connected, so cannot send.")
+    return
+  end 
+  
+  local binstr, payloadLen 
+  
+  -- we need to create the frame headers
+  if string.len(data) > 126 then 
+    print("Websocket lib only supports max len 126 currently")
+    return
+  end
+  
+  -- print("Len: ", string.len(data))
+  
+  -- 1st byte
+  -- binstr = string.char(0x1) -- opcode set to 0x1 for txt
+  binstr = string.char(bit.set(0x1, 7)) -- set FIN to 1 meaning we will not multi-part this msg
+
+  -- 2nd byte mask and payload length
+  payloadLen = string.len(data) 
+  payloadLen = bit.set(payloadLen, 7) -- set mask to on for 8th msb
+  binstr = binstr .. string.char(payloadLen)
+  
+  -- 3rd, 4th, 5th, and 6th byte is masking key
+  -- just use mask of 0 to cheat so no need to xor
+  binstr = binstr .. string.char(0x0,0x0,0x0,0x0)
+  
+  -- Now add payload 
+  binstr = binstr .. data
+
+  -- print out the bytes in decimal
+  -- print(string.byte(binstr, 1, string.len(binstr)))
+  -- print("Len binstr:", string.len(binstr))
+  -- print(binstr)
+
+  m.sock:send(binstr)  
+end 
+
+-- Change timer to 60 seconds, or even 10 minutes if you want
+-- Maximum timer duration value is 6870947 (1:54:30.947)
+function m.pingStart()
+  -- check if timer running
+  if m.pingTmr then 
+    local running, mode = m.pingTmr:state()
+    if running then 
+      print("Websocket being asked to run tmr a 2nd time. huh?")
+      return 
+    end
+  end 
+  
+  m.pingTmr = tmr.create()
+  m.pingTmr:alarm(10000, tmr.ALARM_AUTO, m.onPingSend)
+end 
+
+function m.pingStop()
+  m.pingTmr:stop()
+  m.pingTmr:unregister()
+end
+
+m.isGotPongBack = true
+function m.onPingSend()
+  -- print("Websocket sending ping")
+  
+  -- See if we got a pong back from last time
+  if m.isGotPongBack then
+    -- good to go
+  else
+    -- we are dead
+    m.isConn = false
+    print("Websocket is dead. Reconnecting...")
+    m.reconnect()
+    return
+  end
+  
+  if m.isConn == false then
+    print("We are not connected, can't send ping")
+    m.reconnect()
+    return
+  end
+  
+  -- set to false so we get this set back to true
+  -- when pong is received back
+  m.isGotPongBack = false
+  
+  -- send ping
+  local data = "ping"
+  -- 1st byte
+  -- opcode set to 0x9 for ping
+  local binstr = string.char(bit.set(0x9, 7)) -- set FIN to 1 meaning we will not multi-part this msg
+  -- 2nd byte mask and payload length
+  local payloadLen = string.len(data)
+  payloadLen = bit.set(payloadLen, 7) -- set mask to on for 8th msb
+  binstr = binstr .. string.char(payloadLen)
+  
+  -- 3rd, 4th, 5th, and 6th byte is masking key
+  -- just use mask of 0 to cheat so no need to xor
+  binstr = binstr .. string.char(0x0,0x0,0x0,0x0)
+  -- Now add payload 
+  binstr = binstr .. data
+  
+  -- print out the bytes in decimal
+  -- print(string.byte(binstr, 1, string.len(binstr)))
+  -- print("Len binstr:", string.len(binstr))
+  -- print(binstr)
+  
+  m.sock:send(binstr)
+  if m.onPingSendCallback then m.onPingSendCallback() end
+end
+
+function m.onPingRecv()
+  print("Ping received")
+  -- as a client, this is unlikely, but do callback
+  if m.onPingRecvCallback then m.onPingRecvCallback() end
+end
+
+function m.onPongRecv(data, fin, opcode)
+  -- print("Pong received. data:", data, "fin:", fin, "opcode:", opcode)
+  m.isGotPongBack = true
+  if m.onPongRecvCallback then m.onPongRecvCallback() end
+end
+
+function m.reconnect()
+  print("Reconnecting")
+  if m.isConn then 
+    m.sock:close()
+    m.isConn = false
+  end
+  m.connect()
+end  
+
+function m.disconnect()
+  if m.isConn then 
+    print("Websocket closing...")
+    
+    m.pingStop()
+    
+    -- 1st byte
+    -- opcode set to 0x8 for close
+    binstr = string.char(bit.set(0x8, 7)) -- set FIN to 1 meaning we will not multi-part this msg
+    m.sock:send(binstr)  
+    m.sock:close()
+    m.isConn = false
+    print("Websocket now closed")
+  else 
+    print("Websocket was not connected, so not closing")
+  end 
+end 
+
+function m.getUrl()
+  return m.wsUrl
+end 
+
+function m.isConnected()
+  return m.isConn
+end
+
+return m
+
+                                
+                            </code></pre>
+                            <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="esp32_wifi"
+                                >-- ChiliPeppr Wifi connect library
+-- This library lets you connect to Wifi and get some nice callbacks
+-- It supports multiple wifi ssid/passwords where it iterates over them 
+-- to try multiple networks
+
+-- To use:
+-- wif = require("esp32_wifi")
+-- wif.on("connection", function(ip)
+--   print("Got wifi. IP:", ip)
+-- end)
+-- wif.init()
+
+local m = {}
+-- m = {}
+
+-- provide a list of Wifi networks
+m.wifiAuth = {}
+m.wifiAuth[0] = {ssid = "NETGEAR-main-ext", password = "shimmershine12"}
+m.wifiAuth[1] = {ssid = "Zipwhip", password = "zipwhip313"}
+m.wifiAuth[2] = {ssid = "John", password = ""}
+m.wifiAuth[3] = {ssid = "NETGEAR-main", password = "shimmershine12"}
+
+-- private properties
+m.isInitted = false
+m.myIp = nil
+m.isConn = false
+
+function m.init()
+  
+  if m.myIp == nil then
+    print("Attempting to connect to wifi...")
+    m.setupWifi()
+  else 
+    -- print("My IP: " .. m.myIp)
+    m.isInitted = true
+  end
+end
+
+function m.isConnected()
+  if m.myIp == nil then 
+    return false
+  else 
+    return true
+  end
+end 
+
+m.wifiAuthItem = 0
+function m.setupWifi()
+  --register callback
+  wifi.sta.on("got_ip", m.gotIp)
+  
+  wifi.sta.on("start", function() print "Wifi started" end)
+  wifi.sta.on("stop", function() print "Wifi stopped" end)
+  wifi.sta.on("connected", function(event, info) 
+    print("Wifi connected. ssid:", info.ssid, ", bssid:", info.bssid, ", channel:", info.channel, ", auth:", info.auth)
+
+    print("We should then get an ip...")
+
+  end)
+  wifi.sta.on("disconnected", function(event, info) 
+    -- set our ip to nil cuz that's our indicator of connected
+    m.myIp = nil
+    m.isConn = false
+    print("Wifi disconnected. ssid:", info.ssid, ", bssid:", info.bssid, ", reason:", info.reason)
+    -- for key,value in pairs(data) do print(key,value) end
+    
+    if m.onDisconnectCallback then m.onDisconnectCallback(info) end
+    
+    -- try to use next entry in wifi name/pass list if there is one
+    m.wifiAuthItem = m.wifiAuthItem + 1
+    if #m.wifiAuth < m.wifiAuthItem then
+      print("We have no more entries to analyze. Going to start of list")
+      m.wifiAuthItem = 0
+    end
+    
+    print("Attempting to connect to wifi:", m.wifiAuth[m.wifiAuthItem].ssid, " with password:", m.wifiAuth[m.wifiAuthItem].password )
+    station_cfg={}
+    station_cfg.ssid = m.wifiAuth[m.wifiAuthItem].ssid 
+    station_cfg.pwd = m.wifiAuth[m.wifiAuthItem].password 
+    wifi.sta.config(station_cfg, true)
+    
+  end)
+  wifi.sta.on("authmode_changed", function(event, info) 
+    print("Wifi authmode_changed. old_mode:", info.old_mode, ", new_mode:", info.new_mode)
+    -- for key,value in pairs(data) do print(key,value) end
+  end)
+  
+  -- set as station
+  wifi.mode(1)
+  wifi.stop()
+  -- start wifi
+  wifi.start()
+   
+  --connect to Access Point (DO save config to flash)
+  station_cfg={}
+  station_cfg.ssid = m.wifiAuth[0].ssid 
+  station_cfg.pwd = m.wifiAuth[0].password 
+  wifi.sta.config(station_cfg, true)
+  -- print("Saved wifi name/password")
+  
+end
+
+function m.gotIp(ev, info)
+  
+  print("Oh, we got ourselves an IP:", info.ip, ", Netmask:", info.netmask, ", GW:", info.gw)
+  m.myIp = info.ip
+  m.isConn = true
+  
+  if m.onConnectedCallback then m.onConnectedCallback(info) end 
+  
+  -- make sure we are initted
+  m.init()
+end
+
+function m.getIp()
+  return m.myIp
+end 
+
+m.onConnectedCallback = nil 
+m.onDisconnectCallback = nil
+function m.on(method, func)
+  if method == "connection" then 
+    m.onConnectedCallback = func 
+  elseif method == "disconnection" then
+    m.onDisconnectCallback = func
+  end 
+end
+
+-- m.init()
+return m
+                            </code></pre>
+                            <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="cayenn_simplified"
+                                >-- Cayenn Protocol for ChiliPeppr
+-- This module does udp/tcp sending/receiving to talk with SPJS
+-- or have the browser talk direct to this ESP32 device.
+-- This module has methods for connecting to wifi, then initting
+-- UDP servers, TCP servers, and sending a broadcast announce out.
+-- The broadcast announce lets any listening SPJS know we're alive.
+-- SPJS then reflects that message to any listening browsers like
+-- ChiliPeppr so they know a device is available on the network.
+-- Then the browser can send commands back to this device.
+
+-- To use:
+
+
+json = require("json")
+
+local M = {}
+-- M = {}
+
+M.port = 8988
+M.myip = nil
+M.sock = nil
+M.udpsock = nil
+M.jsonTagTable = nil
+
+M.isInitted = false
+
+-- When you are initting you can pass in tags to describe your device
+-- You should use a format like this:
+-- opts = {}
+-- opts.Name = "LaserUV"
+-- opts.Desc = "Control the BDR209 UV laser"
+-- opts.Icon = "https://raw.githubusercontent.com/chilipeppr/widget-cayenn/master/laser.png"
+-- opts.Widget = "com-chilipeppr-widget-laser"
+-- cayenn.init(opts)
+function M.init(jsonTagTable, ip)
+  
+  if ip then m.myip = ip end 
+  
+  -- save the jsonTagTable
+  if jsonTagTable ~= nil then
+    M.jsonTagTable = jsonTagTable
+  end
+  
+  if M.isInitted then
+    print("Already initted")
+    return
+  end
+  
+  print("Init...")
+
+  M.isInitted = true
+
+  -- create socket for outbound UDP sending
+  M.sock = net.createUDPSocket()
+  -- M.sock = net.createConnection(net.UDP, 0)
+
+  -- create server to listen to incoming udp
+  M.initUdpServer()
+  
+  -- create server to listen to incoming tcp
+  M.initTcpServer()
+  
+  -- send our announce
+  M.sendAnnounceBroadcast(M.jsonTagTable)
+
+  if M.listenerOnConnected ~= nil then
+    M.listenerOnConnected()
+  end
+
+end
+
+function M.setIp(ip)
+  M.myip = ip
+end 
+
+function M.getIp()
+  return M.myip
+end
+
+function M.createAnnounce(jsonTagTable)
+  
+  local a = {}
+  a.Announce = "i-am-a-client"
+  a.MyDeviceId = "chip:" .. node.chipid() .. "-ip:" .. M.myip -- .. "-mac:" .. wifi.sta.getmac()
+  
+  if jsonTagTable.Widget then
+    a.Widget = jsonTagTable.Widget
+    -- jsonTagTable.Widget = nil
+  elseif M.jsonTagTable.Widget then
+    a.Widget = M.jsonTagTable.Widget
+  else
+    a.Widget = "com-chilipeppr-widget-undefined"
+  end
+  
+  -- see if there is a jsontagtable passed in as extra meta
+  local jsontag = ""
+  if jsonTagTable then
+    ok, jsontag = pcall(json.encode, jsonTagTable)
+    if ok then
+      -- print("Adding jsontagtable" .. jsontag)
+    else
+      print("fail encode jsontag")
+    end
+  end
+
+  a.JsonTag = jsontag
+  
+  local ok, jsonStr = pcall(json.encode, a)
+  if ok then
+    --print("Encoded json for announce: " .. json)
+  else
+    print("fail encode json")
+  end
+  print("Announce: " .. jsonStr)
+  return jsonStr
+end
+
+-- send announce to broadcast addr so spjs 
+-- knows of our existence
+function M.sendAnnounceBroadcast(jsonTagTable)
+  -- if M.isInitted == false then
+  --   -- print("You must init first.")
+  --   return 
+  -- end
+  if M.myip == nil then
+    print("Cayenn needs the IP of your device before init")
+    return
+  end
+  
+  -- since getbroadcast() is not available on esp32
+  -- then just figure it out manually
+  local m1, m2, m3, m4 = string.match(M.myip, "(%d+)\.(%d+)\.(%d+)\.(%d+)")
+  local bip = m1 .. "." .. m2 .. "." .. m3 .. ".255"
+  -- local bip = wifi.sta.getbroadcast()
+  -- print("Broadcast addr:" .. bip)
+  
+  -- if there was no jsonTagTable passed in, then use
+  -- stored one 
+  if not jsonTagTable then 
+    jsonTagTable = M.jsonTagTable
+  end 
+  
+  print("Announce to broadcast ip: " .. bip)
+  -- M.sock:connect(M.port, bip)
+  M.sock:send(M.port, bip, M.createAnnounce(jsonTagTable))
+  -- M.sock:close()
+  
+end
+
+-- Workhorse of this library to send broadcast, UDP, or TCP msg back 
+-- to SPJS so it can regurgitate to ChiliPeppr
+-- Keep in mind that your custom payload is in jsonTagTable 
+-- and that gets embedded in the larger JSON packet that
+-- describes this device 
+
+function M.sendBroadcast(jsonTagTable)
+  M.sendUtility(jsonTagTable, "broadcast")
+end
+
+function M.sendViaUdp(jsonTagTable, ip)
+  M.sendUtility(jsonTagTable, "udp", ip)
+end
+
+function M.sendViaTcp(jsonTagTable, ip)
+  M.sendUtility(jsonTagTable, "tcp", ip)
+end
+  
+function M.sendUtility(jsonTagTable, viaMethod, ip)
+  
+  -- if M.isInitted == false then
+  --   -- print("You must init first.")
+  --   return 
+  -- end
+  
+  -- we need to attach deviceid 
+  local a = {}
+  
+  -- see if there is a jsontagtable passed in as extra meta
+  local jsontag = ""
+  if jsonTagTable then
+    ok, jsontag = pcall(json.encode, jsonTagTable)
+    if ok then
+      -- print("Adding jsontagtable" .. jsontag)
+    else
+      print("fail encode jsontag")
+      jsonTagTable = nil 
+      jsontag = nil 
+    end
+  end
+
+  a.JsonTag = jsontag
+  jsontag = nil -- delete from memory
+  jsonTagTable = nil -- delete from memory
+  
+  a.MyDeviceId = "chip:" .. node.chipid() .. "-ip:" .. M.myip --.. "-mac:" .. wifi.sta.getmac()
+
+  local ok, jsonFinal = pcall(json.encode, a)
+  if ok then
+    --print("Encoded json for announce: " .. json)
+  else
+    print("fail encode json")
+  end
+  
+  a = nil -- delete it 
+  
+  -- local bip = wifi.sta.getbroadcast()
+  if ip == nil or viaMethod == "broadcast" then 
+  -- if true then
+    ip = {} 
+    -- since getbroadcast() is not available on esp32
+    -- then just figure it out manually
+    local m1, m2, m3, m4 = string.match(M.myip, "(%d+)\.(%d+)\.(%d+)\.(%d+)")
+    local bip = m1 .. "." .. m2 .. "." .. m3 .. ".255"
+    print("Using broadcast addr for send")
+    ip[bip] = true
+  end 
+  --print("Broadcast addr:" .. bip)
+  
+  -- local msg = cjson.encode(jsonTagTable)
+  -- local msg = cjson.encode(a)
+  -- print("Sending UDP msg: " .. json .. " to ip: " .. bip)
+  for key,value in pairs(ip) do 
+    -- print(key,value) 
+    
+    if viaMethod == "tcp" then
+    
+      -- TCP approach alternately send via tcp
+      print("Sending TCP to ip: " .. key .. ", msg: " .. jsonFinal)
+      local localsocket = net.createConnection(net.TCP)
+      localsocket:on("connection", function(sck, c)
+        print("Got connection. Sending TCP msg: " .. jsonFinal)
+        sck:send(jsonFinal)
+        sck:close()
+      end)
+      localsocket:connect(M.port, key)
+
+    else
+      
+      -- UDP approach for viaMethod of UDP or Broadcast
+      print("Sending UDP to ip: " .. key .. ", msg: " .. jsonFinal)
+      M.sock:send(M.port, key, jsonFinal)
+    
+    end
+    
+  end
+  
+  -- ip = nil -- delete it 
+  -- json = nil -- delete it 
+  
+end
+
+-- this property and method let an external object attach a
+-- listener to the incoming UDP cmd
+M.listenerOnConnected = nil
+function M.addListenerOnConnected(listenerCallback)
+  M.listenerOnConnected = listenerCallback
+  -- print("Attached listener to incoming UDP cmd")
+end
+
+function M.initUdpServer()
+  M.udpServer = net.createUDPSocket()
+  --M.udpServer:on("connection", M.onUdpConnection)
+  M.udpServer:on("receive", M.onUdpRecv) 
+  M.udpServer:listen(8988)
+  port, ip = M.udpServer:getaddr()
+  print(string.format("local UDP socket address / port: %s:%d", ip, port))
+  print("UDP Server started on port 8988")
+end
+
+function M.onUdpConnection(sck)
+  -- print("UDP connection.")
+  --ip, port = sck:getpeer()
+  --print("UDP connection. from: " .. ip)
+end
+
+function M.onUdpRecv(sck, data, port, ip)
+  print("UDP Recv " .. data)
+  
+  print("UDP connection. from IP: " .. ip .. ", from port: " .. port)
+  
+  if (M.listenerOnIncomingUdpCmd) then
+    -- see if json
+    if string.sub(data,1,1) == "{" then
+      -- catch json errors
+      local succ, results = pcall(json.decode, data)
+      
+      -- see if we could parse
+      if succ then
+      	data = results --cjson.decode(data)
+      	data.port = port 
+      	data.ip = ip
+        -- data.peerIp = peer
+      else
+      	print("Err parse JSON")
+      	return
+      end
+      
+    end
+    M.listenerOnIncomingUdpCmd(data)
+  end
+end
+
+-- this property and method let an external object attach a
+-- listener to the incoming UDP cmd
+M.listenerOnIncomingUdpCmd = nil
+function M.addListenerOnIncomingUdpCmd(listenerCallback)
+  M.listenerOnIncomingUdpCmd = listenerCallback
+  -- print("Attached listener to incoming UDP cmd")
+end
+
+function M.removeListenerOnIncomingUdpCmd(listenerCallback)
+  M.listenerOnIncomingUdpCmd = nil
+  -- print("Removed listener on incoming UDP cmd")
+end
+
+function M.initTcpServer()
+  M.tcpServer = net.createServer(net.TCP)
+  M.tcpServer:listen(8988, M.onTcpListen)
+  
+  -- print("TCP Server started on port 8988")
+end
+
+function M.onTcpListen(conn)
+  conn:on("receive", M.onTcpRecv)
+end
+
+function M.onTcpConnection(sck)
+  -- print("TCP connection.")
+  --ip, port = sck:getpeer()
+  --print("UDP connection. from: " .. ip)
+end
+
+function M.onTcpRecv(sck, data)
+  local peerPort, peerIp = sck:getpeer()
+  print("TCP Recv " .. data .. ", peerIp:" .. peerIp .. ", peerPort:" .. peerPort)
+  if (M.listenerOnIncomingCmd) then
+    -- see if json
+    if string.sub(data,1,1) == "{" then
+      -- catch json errors
+      local succ, results = pcall(json.decode, data)
+      
+      -- see if we could parse
+      if succ then
+      	data = results --cjson.decode(data)
+        data.peerIp = peerIp
+      else
+      	print("Err parse JSON. results:" .. results)
+      	return
+      end
+      
+    end
+    M.listenerOnIncomingCmd(data)
+  end
+end
+
+-- this property and method let an external object attach a
+-- listener to the incoming TCP command
+M.listenerOnIncomingCmd = nil
+function M.addListenerOnIncomingCmd(listenerCallback)
+  M.listenerOnIncomingCmd = listenerCallback
+  -- print("Attached listener to incoming TCP cmd")
+end
+
+function M.removeListenerOnIncomingCmd(listenerCallback)
+  M.listenerOnIncomingCmd = nil
+  -- print("Removed listener on incoming TCP cmd")
+end
+
+function M.on(method, func)
+  if method == "command" then
+    M.listenerOnIncomingCmd = func 
+  elseif method == "broadcast" then
+    M.listenerOnIncomingUdpCmd = func 
+  end 
+end 
+
+return M
+
+-- opts = {}
+-- opts.Name = "Sample Device"
+-- opts.Desc = "Sample description of this device"
+-- opts.Icon = "https://raw.githubusercontent.com/chilipeppr/cayenn-laseruv/master/lasericon.jpg"
+
+-- M.init(opts)
+
+                            </code></pre>
+                            <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="blink_led_wemos"
+                                >-- ChiliPeppr - Blink built-in LEDs on ESP32 devices
+--
+-- To use:
+-- led = require("blink_led_wemos")
+-- led.init()
+-- led.blink(1000)
+
+local m = {}
+
+-- Config
+-- Try pings 2 on DOIT, 13 on TTGO, 16 on Wemos
+m.pins = {ESP32_DOIT = 2, ESP32_Lolin32 = 5, ESP32_TTGO = 13, ESP32_Wemos = 16} 
+m.duration = 100
+
+function m.init()
+  -- Initialise the pins
+  print("Initializing pins")
+  for key, value in pairs(m.pins) do
+    print("Initting LED pin for ESP32 device: ", key, "pin:", value)
+    gpio.config( { gpio={value}, dir=gpio.OUT } )
+    m.on()
+  end
+end
+
+function m.on()
+  for key, value in pairs(m.pins) do
+    local pin = value
+    gpio.write(pin, 0)
+  end
+end 
+
+function m.off()
+  for key, value in pairs(m.pins) do
+    local pin = value
+    gpio.write(pin, 1)
+  end
+end 
+
+m.value = 0
+function m.toggleLED()
+  if m.value == 0 then
+    m.value = 1
+    m.on()
+  else
+    m.value = 0
+    m.off()
+  end
+end
+
+function m.blink(duration)
+  -- tmr.alarm(0, duration, 1, toggleLED)
+  m.mytimer = tmr.create()
+  local dur = m.duration
+  if duration and duration > 0 then dur = duration end
+  m.mytimer:alarm(dur, tmr.ALARM_AUTO, m.toggleLED)
+end
+
+function m.stop()
+  m.mytimer:stop()
+  m.mytimer:unregister()
+  m.off()
+end
+
+return m
+
+                            </code></pre>
+                            <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="joystick"
+                                >-- ChiliPeppr Joystick controller
+--
+-- To use:
+-- joystick = require("joystick")
+-- joystick.on("xy", function(x, y)
+--   print("Got xy change. x:", x, "y:", y)
+-- end)
+-- joystick.on("x", function(x)
+--   print("Got x change. x:", x)
+-- end)
+-- joystick.on("y", function(y)
+--   print("Got y change. y:", y)
+-- end)
+-- joystick.on("xcenter", function()
+--   print("Got x center")
+-- end)
+-- joystick.on("ycenter", function()
+--   print("Got y center")
+-- end)
+-- joystick.on("button", function(val)
+--   print("Got button:", val)
+-- end)
+-- joystick.init()
+
+-- For test/debug
+-- if m.tmr then m.tmr:stop(); m.tmr:unregister() end 
+
+local m = {}
+-- m = {}
+
+m.pinAdcX = 6 -- ADC 6: GPIO34
+-- m.pinAdcY = 3 -- ADC 3: GPIO39
+-- m.pinAdcY = 7 -- ADC 7: GPIO35
+m.pinAdcY = 5 -- ADC 5: GPIO33
+-- m.pinSwitch = 18
+m.pinSwitch = 32
+
+-- For TTGO
+-- m.centerX = 1850
+-- m.centerXMin = 1800
+-- m.centerXMax = 1915
+-- m.centerY = 1850
+-- m.centerYMin = 1800
+-- m.centerYMax = 1915
+
+-- For Wemos battery powered
+m.centerX = 1800
+m.centerXMin = 1700
+m.centerXMax = 1870
+m.centerY = 1800
+m.centerYMin = 1700
+m.centerYMax = 1870
+
+
+m.isInitted = false
+m.tmr = tmr.create()
+
+-- Make sure to call this first
+function m.init()
+  
+  if m.isInitted then
+    return
+  end
+  
+  print("Initting joystick pins. X: " .. m.pinAdcX .. ", Y: " .. m.pinAdcY .. ", Switch: " .. m.pinSwitch)
+  
+  -- Initialise the pins
+  gpio.config( { gpio=m.pinSwitch, dir=gpio.IN, pull=gpio.PULL_UP } )
+  m.startSwitchInterrupt()
+  
+  -- adc.setwidth(adc.ADC1, 9)  -- read 9 bit on ADC
+  adc.setwidth(adc.ADC1, 12)  -- read 12 bit on ADC
+  adc.setup(adc.ADC1, m.pinAdcX, adc.ATTEN_11db    )
+  adc.setup(adc.ADC1, m.pinAdcY, adc.ATTEN_11db    )
+  
+  m.tmr:alarm(250, tmr.ALARM_AUTO, function()
+    m.readXY()
+    -- m.readY()
+    -- m.readX()
+  end)
+  
+  m.isInitted = true
+  
+end
+
+m.onX = nil
+m.onXCenter = nil
+m.onY = nil
+m.onYCenter = nil
+m.onXY = nil
+m.onButton = nil 
+function m.on(method, func)
+  if method == "x" then 
+    m.onX = func 
+  elseif method == "xcenter" then
+    m.onXCenter = func 
+  elseif method == "y" then 
+    m.onY = func 
+  elseif method == "ycenter" then
+    m.onYCenter = func
+  elseif method == "xy" then
+    m.onXY = func
+  elseif method == "button" then 
+    m.onButton = func 
+  end 
+end  
+
+m.lastX = 0
+function m.readX()
+  local val = adc.read(adc.ADC1, m.pinAdcX)
+  if m.lastX == val then return end
+  m.lastX = val
+  print("X: " .. val)
+  if m.onX then m.onX(val) end 
+end
+
+m.lastY = 0
+function m.readY()
+  local val = adc.read(adc.ADC1, m.pinAdcY)
+  if m.lastY == val then return end
+  m.lastY = val
+  print("Y: " .. val)
+  if m.onY then m.onY(val) end 
+end
+
+m.lastXWasCenter = true
+m.lastYWasCenter = true
+function m.readXY()
+  local valX = adc.read(adc.ADC1, m.pinAdcX)
+  local valY = adc.read(adc.ADC1, m.pinAdcY)
+  
+  -- if x or y is new value then send xy update
+  local isXYUpdated = false
+  
+  -- do some level setting for center point
+  if valX >= m.centerXMin and valX <= m.centerXMax then 
+    -- consider it a center point
+    -- valX = m.centerX
+    
+    -- see if last X was center, and if so ignore 
+    if m.lastXWasCenter then
+      -- do nothing
+    else 
+    
+      -- last x was not center, so fire off event
+      m.lastXWasCenter = true
+      if m.onXCenter then 
+        node.task.post(node.task.LOW_PRIORITY, function()
+          m.onXCenter(m.centerX) 
+        end)
+      end
+    end 
+    
+  else 
+    -- x is not on center, so fire event
+    m.lastXWasCenter = false
+    isXYUpdated = true
+    if m.onX then 
+      node.task.post(node.task.LOW_PRIORITY, function()
+        m.onX(valX) 
+      end)
+    end
+  end 
+  
+  if valY >= m.centerYMin and valY <= m.centerYMax then 
+    -- consider it a center point
+    -- valY = m.centerY
+    -- see if last Y was center, and if so ignore 
+    if m.lastYWasCenter then
+      -- do nothing
+    else
+    
+      -- last x was not center, so fire off event
+      m.lastYWasCenter = true
+      if m.onYCenter then 
+        node.task.post(node.task.LOW_PRIORITY, function()
+          m.onYCenter(m.centerY) 
+        end)
+      end
+    end 
+    
+  else 
+    -- y is not on center, so fire event
+    m.lastYWasCenter = false
+    isXYUpdated = true
+    if m.onY then 
+      node.task.post(node.task.LOW_PRIORITY, function()
+        m.onY(valY) 
+      end)
+    end
+  end
+  
+  if isXYUpdated then
+    if m.onXY then 
+      node.task.post(node.task.LOW_PRIORITY, function()
+        m.onXY(valX, valY) 
+      end)
+    end
+  end
+  
+  -- print("X: " .. valX .. ", Y: " .. valY)
+  
+end
+
+function m.readSwitch()
+  local val = gpio.read(m.pinSwitch)
+  print("Switch: ", val)
+  if m.onButton then m.onButton(val) end
+end
+
+function m.startSwitchInterrupt()
+  gpio.trig(m.pinSwitch, gpio.INTR_UP_DOWN, m.onSwitchInterrupt)
+  print("Set interrupt for switch.")
+end 
+
+m.lastSwitchVal = 0
+function m.onSwitchInterrupt(pin, level)
+  if level == m.lastSwitchVal then return end 
+  m.lastSwitchVal = level
+  print("Got switch interrupt. pin: ", pin, ", level: ", level)
+end
+
+-- m.init()
+
+return m 
+
+
+
+                            </code></pre>
+                            <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="json"
+                                >-- ChiliPeppr tweaked version of rxi's awesome JSON library in pure Lua code to make it work
+-- seamlessly on ESP32 since there is no firmware level JSON library like cjson or sjson for ESP32 yet.
+-- Very minimal changes were made to get this to work.
+--
+-- To use:
+-- json = require('json')
+
+--
+-- json.lua
+--
+-- Copyright (c) 2015 rxi
+--
+-- This library is free software; you can redistribute it and/or modify it
+-- under the terms of the MIT license. See LICENSE for details.
+--
+
+local json = { _version = "0.1.0" }
+
+-------------------------------------------------------------------------------
+-- Encode
+-------------------------------------------------------------------------------
+
+local encode
+
+local escape_char_map = {
+  [ "\\" ] = "\\\\",
+  [ "\"" ] = "\\\"",
+  [ "\b" ] = "\\b",
+  [ "\f" ] = "\\f",
+  [ "\n" ] = "\\n",
+  [ "\r" ] = "\\r",
+  [ "\t" ] = "\\t",
+}
+
+local escape_char_map_inv = { [ "\\/" ] = "/" }
+for k, v in pairs(escape_char_map) do
+  escape_char_map_inv[v] = k
+end
+
+
+local function escape_char(c)
+  return escape_char_map[c] or string.format("\\u%04x", c:byte())
+end
+
+
+local function encode_nil(val)
+  return "null"
+end 
+
+
+local function encode_table(val, stack)
+  local res = {}
+  stack = stack or {}
+
+  -- Circular reference?
+  if stack[val] then error("circular reference") end
+
+  stack[val] = true
+
+  if val[1] ~= nil or next(val) == nil then
+    -- Treat as array -- check keys are valid and it is not sparse
+    local n = 0
+    for k in pairs(val) do
+      if type(k) ~= "number" then
+        error("invalid table: mixed or invalid key types")
+      end
+      n = n + 1
+    end
+    if n ~= #val then
+      error("invalid table: sparse array")
+    end
+    -- Encode
+    for i, v in ipairs(val) do
+      table.insert(res, encode(v, stack))
+    end
+    stack[val] = nil
+    return "[" .. table.concat(res, ",") .. "]"
+
+  else
+    -- Treat as an object
+    for k, v in pairs(val) do
+      if type(k) ~= "string" then
+        error("invalid table: mixed or invalid key types")
+      end
+      table.insert(res, encode(k, stack) .. ":" .. encode(v, stack))
+    end
+    stack[val] = nil
+    return "{" .. table.concat(res, ",") .. "}"
+  end
+end
+
+
+local function encode_string(val)
+  return '"' .. val:gsub('[%z\1-\31\\"]', escape_char) .. '"'
+end
+
+
+local function encode_number(val)
+  -- Check for NaN, -inf and inf
+  if val ~= val or val <= -math.huge or val >= math.huge then
+    error("unexpected number value '" .. tostring(val) .. "'")
+  end
+  return string.format("%.14g", val)
+end
+
+
+local type_func_map = {
+  [ "nil"     ] = encode_nil,
+  [ "table"   ] = encode_table,
+  [ "string"  ] = encode_string,
+  [ "number"  ] = encode_number,
+  [ "boolean" ] = tostring,
+}
+
+
+encode = function(val, stack)
+  local t = type(val)
+  local f = type_func_map[t]
+  if f ~= nil then
+    return f(val, stack)
+  end
+  error("unexpected type '" .. t .. "'")
+end
+
+
+function json.encode(val)
+  return ( encode(val) )
+end
+
+
+-------------------------------------------------------------------------------
+-- Decode
+-------------------------------------------------------------------------------
+
+local parse
+
+local function create_set(...) 
+  local res = {}
+  for i = 1, select("#", ...) do
+    res[ select(i, ...) ] = true
+  end
+  return res
+end
+
+local space_chars   = create_set(" ", "\t", "\r", "\n")
+local delim_chars   = create_set(" ", "\t", "\r", "\n", "]", "}", ",")
+local escape_chars  = create_set("\\", "/", '"', "b", "f", "n", "r", "t", "u")
+local literals      = create_set("true", "false", "null")
+
+local literal_map = {
+  [ "true"  ] = true,
+  [ "false" ] = false,
+  [ "null"  ] = nil,
+}
+
+
+local function next_char(str, idx, set, negate)
+  for i = idx, #str do
+    if set[str:sub(i, i)] ~= negate then
+      return i
+    end
+  end
+  return #str + 1
+end
+
+
+local function decode_error(str, idx, msg)
+  local line_count = 1
+  local col_count = 1
+  for i = 1, idx - 1 do
+    col_count = col_count + 1
+    if str:sub(i, i) == "\n" then
+      line_count = line_count + 1
+      col_count = 1
+    end
+  end
+  error( string.format("%s at line %d col %d", msg, line_count, col_count) )
+end
+
+
+local function codepoint_to_utf8(n)
+  -- http://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=iws-appendixa
+  local f = math.floor
+  if n <= 0x7f then
+    return string.char(n)
+  elseif n <= 0x7ff then
+    return string.char(f(n / 64) + 192, n % 64 + 128)
+  elseif n <= 0xffff then
+    return string.char(f(n / 4096) + 224, f(n % 4096 / 64) + 128, n % 64 + 128)
+  elseif n <= 0x10ffff then
+    return string.char(f(n / 262144) + 240, f(n % 262144 / 4096) + 128,
+                       f(n % 4096 / 64) + 128, n % 64 + 128)
+  end
+  error( string.format("invalid unicode codepoint '%x'", n) )
+end
+
+
+local function parse_unicode_escape(s)
+  local n1 = tonumber( s:sub(3, 6),  16 )
+  local n2 = tonumber( s:sub(9, 12), 16 )
+  -- Surrogate pair?
+  if n2 then
+    return codepoint_to_utf8((n1 - 0xd800) * 0x400 + (n2 - 0xdc00) + 0x10000)
+  else
+    return codepoint_to_utf8(n1)
+  end
+end
+
+
+local function parse_string(str, i)
+  local has_unicode_escape = false
+  local has_surrogate_escape = false
+  local has_escape = false
+  local last
+  for j = i + 1, #str do
+    local x = str:byte(j)
+
+    if x < 32 then
+      decode_error(str, j, "control character in string")
+    end
+
+    if last == 92 then -- "\\" (escape char)
+      if x == 117 then -- "u" (unicode escape sequence)
+        local hex = str:sub(j + 1, j + 5)
+        if not hex:find("%x%x%x%x") then
+          decode_error(str, j, "invalid unicode escape in string")
+        end
+        if hex:find("^[dD][89aAbB]") then
+          has_surrogate_escape = true
+        else
+          has_unicode_escape = true
+        end
+      else
+        local c = string.char(x)
+        if not escape_chars[c] then
+          decode_error(str, j, "invalid escape char '" .. c .. "' in string")
+        end
+        has_escape = true
+      end
+      last = nil
+
+    elseif x == 34 then -- '"' (end of string)
+      local s = str:sub(i + 1, j - 1)
+      if has_surrogate_escape then 
+        s = s:gsub("\\u[dD][89aAbB]..\\u....", parse_unicode_escape)
+      end
+      if has_unicode_escape then 
+        s = s:gsub("\\u....", parse_unicode_escape)
+      end
+      if has_escape then
+        s = s:gsub("\\.", escape_char_map_inv)
+      end
+      return s, j + 1
+    
+    else
+      last = x
+    end
+  end
+  decode_error(str, i, "expected closing quote for string")
+end
+
+
+local function parse_number(str, i)
+  local x = next_char(str, i, delim_chars)
+  local s = str:sub(i, x - 1)
+  local n = tonumber(s)
+  if not n then
+    decode_error(str, i, "invalid number '" .. s .. "'")
+  end
+  return n, x
+end
+
+
+local function parse_literal(str, i)
+  local x = next_char(str, i, delim_chars)
+  local word = str:sub(i, x - 1)
+  if not literals[word] then
+    decode_error(str, i, "invalid literal '" .. word .. "'")
+  end
+  return literal_map[word], x
+end
+
+
+local function parse_array(str, i)
+  local res = {}
+  local n = 1
+  i = i + 1
+  while 1 do
+    local x
+    i = next_char(str, i, space_chars, true)
+    -- Empty / end of array?
+    if str:sub(i, i) == "]" then 
+      i = i + 1
+      break
+    end
+    -- Read token
+    x, i = parse(str, i)
+    res[n] = x
+    n = n + 1
+    -- Next token 
+    i = next_char(str, i, space_chars, true)
+    local chr = str:sub(i, i)
+    i = i + 1
+    if chr == "]" then break end
+    if chr ~= "," then decode_error(str, i, "expected ']' or ','") end
+  end
+  return res, i
+end
+
+
+local function parse_object(str, i)
+  local res = {}
+  i = i + 1
+  while 1 do
+    local key, val
+    i = next_char(str, i, space_chars, true)
+    -- Empty / end of object?
+    if str:sub(i, i) == "}" then 
+      i = i + 1
+      break
+    end
+    -- Read key
+    if str:sub(i, i) ~= '"' then
+      decode_error(str, i, "expected string for key")
+    end
+    key, i = parse(str, i)
+    -- Read ':' delimiter
+    i = next_char(str, i, space_chars, true)
+    if str:sub(i, i) ~= ":" then
+      decode_error(str, i, "expected ':' after key")
+    end
+    i = next_char(str, i + 1, space_chars, true)
+    -- Read value
+    val, i = parse(str, i)
+    -- Set
+    res[key] = val
+    -- Next token
+    i = next_char(str, i, space_chars, true)
+    local chr = str:sub(i, i)
+    i = i + 1
+    if chr == "}" then break end
+    if chr ~= "," then decode_error(str, i, "expected '}' or ','") end
+  end
+  return res, i
+end
+
+
+local char_func_map = {
+  [ '"' ] = parse_string,
+  [ "0" ] = parse_number,
+  [ "1" ] = parse_number,
+  [ "2" ] = parse_number,
+  [ "3" ] = parse_number,
+  [ "4" ] = parse_number,
+  [ "5" ] = parse_number,
+  [ "6" ] = parse_number,
+  [ "7" ] = parse_number,
+  [ "8" ] = parse_number,
+  [ "9" ] = parse_number,
+  [ "-" ] = parse_number,
+  [ "t" ] = parse_literal,
+  [ "f" ] = parse_literal,
+  [ "n" ] = parse_literal,
+  [ "[" ] = parse_array,
+  [ "{" ] = parse_object
+}
+
+parse = function(str, idx)
+  local chr = str:sub(idx, idx)
+  local f = char_func_map[chr]
+  if f then
+    return f(str, idx)
+  end
+  decode_error(str, idx, "unexpected character '" .. chr .. "'")
+end
+
+function json.decode(str)
+  if type(str) ~= "string" then
+    error("expected argument of type string, got " .. type(str))
+  end
+  return ( parse(str, next_char(str, 1, space_chars, true)) )
+end
+
+return json
+
+                            </code></pre>
+                            <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="main_chilipeppr_joystick"
+                                >-- ChiliPeppr Joystick Websocket TinyG App
+-- Finds an SPJS on the network with an active TinyG connection
+-- and reports that with a callback. Then lets us send Gcode to jog.
+
+cputil = require("chilipeppr_tinyg_v2")
+led = require("blink_led_wemos")
+
+cputil.on("tinyg_found", function(info, ws)
+  led.stop()
+  print("Found TinyG. ip:", info.ip, "name:", info.Name)
+  print("The active websocket connected to this TinyG is:", ws.wsUrl)
+  setupJoystick()
+end)
+
+-- for LED indicator
+led.init()
+led.blink()
+
+function setupJoystick()
+  joystick = require("joystick")
+  local prefix = "send " .. cputil.tinyg.Name .. " " 
+  local suffix = "G90\n"
+
+  -- For going to the left (negative)
+  -- Map a 0 val to feedrate 1000, 1799 to feedrate 50, and linear in between
+  -- 0 = F1000
+  -- 1799 = F50
+  -- If your number N falls between A and B, and you would like M to fall between C and D
+  -- M = (N-A)/(B-A) * (D-C) + C
+  local a = 0
+  local b = 1799
+  local c = 1800
+  local d = 50 
+  -- map to distance as well
+  local c2 = 6
+  local d2 = 0.5
+  
+  -- For going to the right (positive)
+  -- 1900 = F50
+  -- 4095 = F1000
+  local e = 1900
+  local f = 4095
+  local g = 50
+  local h = 1800
+  local g2 = 0.5
+  local h2 = 6
+
+  joystick.on("xy", function(x, y)
+    
+    local gcode = ""
+    local fr = ""
+    local dist = ""
+    
+    print("x:", x, "y:", y)
+    
+    if x < 1800 then 
+      -- go negative
+      -- feedrate?
+      fr = math.floor((x-a)/(b-a) * (d-c) + c)
+      dist = (x-a)/(b-a) * (d2-c2) + c2
+      gcode = " X-" .. dist 
+      
+    elseif x > 1900 then 
+      -- feedrate?
+      fr = math.floor(math.abs((x-e)/(f-e) * (h-g) + g))
+      dist = math.abs((x-e)/(f-e) * (h2-g2) + g2)
+      gcode = " X" .. dist 
+      
+    end
+    
+    -- print("Got y change:", y)
+    if y < 1800 then 
+      -- go negative
+      -- feedrate?
+      fr = math.floor((y-a)/(b-a) * (d-c) + c)
+      dist = (y-a)/(b-a) * (d2-c2) + c2
+      gcode = gcode .. " Y" .. dist
+      
+    elseif y > 1900 then 
+      -- feedrate?
+      fr = math.floor(math.abs((y-e)/(f-e) * (h-g) + g))
+      dist = math.abs((y-e)/(f-e) * (h2-g2) + g2)
+      gcode = gcode .. " Y-" .. dist
+      
+    end
+    
+    if gcode ~= "" then
+      led.on()
+      ws.send(prefix .. "G91 G1 F" .. fr .. gcode .. "\n" .. suffix)
+    end 
+    
+  end)
+  
+  joystick.on("x-old", function(x)
+    print("Got x change:", x)
+    if x < 1800 then 
+      -- go negative
+      -- feedrate?
+      fr = math.floor((x-a)/(b-a) * (d-c) + c)
+      dist = (x-a)/(b-a) * (d2-c2) + c2
+      local gcode = prefix .. "G91 G1 F" .. fr .. " X-" .. dist .. "\n" .. suffix
+      ws.send(gcode)
+    elseif x > 1900 then 
+      -- feedrate?
+      fr = math.floor(math.abs((x-e)/(f-e) * (h-g) + g))
+      dist = math.abs((x-e)/(f-e) * (h2-g2) + g2)
+      local gcode = prefix .. "G91 G1 F" .. fr .. " X" .. dist .. "\n" .. suffix
+      ws.send(gcode)
+    end
+  end)
+  joystick.on("xcenter", function()
+    print("Got x center")
+    -- do feedhold
+    local gcode = prefix .. "!\n%\n"
+    led.off()
+    ws.send(gcode)
+
+  end)
+  joystick.on("y-old", function(y)
+    print("Got y change:", y)
+    if y < 1800 then 
+      -- go negative
+      -- feedrate?
+      fr = math.floor((y-a)/(b-a) * (d-c) + c)
+      dist = (y-a)/(b-a) * (d2-c2) + c2
+      local gcode = prefix .. "G91 G1 F" .. fr .. " Y" .. dist .. "\n" .. suffix
+      ws.send(gcode)
+    elseif y > 1900 then 
+      -- feedrate?
+      fr = math.floor(math.abs((y-e)/(f-e) * (h-g) + g))
+      dist = math.abs((y-e)/(f-e) * (h2-g2) + g2)
+      local gcode = prefix .. "G91 G1 F" .. fr .. " Y-" .. dist .. "\n" .. suffix
+      ws.send(gcode)
+    end
+  end)
+  joystick.on("ycenter", function()
+    print("Got y center")
+    -- do feedhold
+    local gcode = prefix .. "!\n%\n"
+    led.off()
+    ws.send(gcode)
+
+  end)
+  joystick.on("button", function(val)
+    print("Got button:", val)
+  end)
+  -- joystick.init()
+  print("Uncomment joystick.init() when you have it connected so you don't send miscellaneous Gcode to your TinyG and break an end mill")
+end
+
+if ws and ws.isConnected() then 
+  -- we have a webocket already, just use it 
+  print("Have websocket already, setup joystick")
+  setupJoystick()
+else 
+  -- find tinyg and connect to websocket
+  cputil.init()
+end
+                            </code></pre>
+                            
+
+                            </figure>
+                            <div class="btn-group btn-group-codeexpander">
+                                <button type="button" class="btn btn-xs btn-default btn-collapsecode"><span class="glyphicon glyphicon-chevron-down"></span>
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- end code sample -->
 
                 </div>
 
