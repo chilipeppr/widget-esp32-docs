@@ -1270,40 +1270,6 @@ sendImgToDisplay()
                         </div>
                         <div class="code-sample-wrapper code-sample-collapsed upper-right-buttons">
                             <figure class="highlight">
-                                <pre><code class="language-javascript" 
-                                data-lang="javascript" data-filename="joystick_test"
-                                >-- ChiliPeppr Joystick test 
-
-joystick = require("joystick")
-
-joystick.on("xy", function(x, y)
-  print("Got xy change. x:", x, "y:", y)
-end)
-
--- joystick.on("x", function(x)
---   print("Got x change. x:", x)
--- end)
-
--- joystick.on("y", function(y)
---   print("Got y change. y:", y)
--- end)
-
-joystick.on("xcenter", function()
-  print("Got x center")
-end)
-
-joystick.on("ycenter", function()
-  print("Got y center")
-end)
-
-joystick.on("button", function(val)
-  print("Got button:", val)
-end)
-
-joystick.init()
-
-
-                            </code></pre>
                             <pre><code class="language-javascript" 
                                 data-lang="javascript" data-filename="joystick"
                                 >-- ChiliPeppr Joystick controller
@@ -1533,7 +1499,42 @@ end
 return m 
 
 
-</code></pre>
+                                </code></pre>
+                                <pre><code class="language-javascript" 
+                                data-lang="javascript" data-filename="joystick_test"
+                                >-- ChiliPeppr Joystick test 
+
+joystick = require("joystick")
+
+joystick.on("xy", function(x, y)
+  print("Got xy change. x:", x, "y:", y)
+end)
+
+-- joystick.on("x", function(x)
+--   print("Got x change. x:", x)
+-- end)
+
+-- joystick.on("y", function(y)
+--   print("Got y change. y:", y)
+-- end)
+
+joystick.on("xcenter", function()
+  print("Got x center")
+end)
+
+joystick.on("ycenter", function()
+  print("Got y center")
+end)
+
+joystick.on("button", function(val)
+  print("Got button:", val)
+end)
+
+joystick.init()
+
+
+                            </code></pre>
+
                             </figure>
                             <div class="btn-group btn-group-codeexpander">
                                 <button type="button" class="btn btn-xs btn-default btn-collapsecode"><span class="glyphicon glyphicon-chevron-down"></span>
