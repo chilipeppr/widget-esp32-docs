@@ -4054,10 +4054,10 @@ local m = {}
 
 -- provide a list of Wifi networks
 m.wifiAuth = {}
-m.wifiAuth[0] = {ssid = "NETGEAR-main-ext", password = "shimmershine12"}
-m.wifiAuth[1] = {ssid = "Zipwhip", password = "zipwhip313"}
+m.wifiAuth[0] = {ssid = "NETGEAR-main-ext", password = "**"}
+m.wifiAuth[1] = {ssid = "Zipwhip", password = "**"}
 m.wifiAuth[2] = {ssid = "John", password = ""}
-m.wifiAuth[3] = {ssid = "NETGEAR-main", password = "shimmershine12"}
+m.wifiAuth[3] = {ssid = "NETGEAR-main", password = "**"}
 
 -- private properties
 m.isInitted = false
@@ -5251,6 +5251,9 @@ return json
 
 cputil = require("chilipeppr_tinyg_v2")
 led = require("blink_led_wemos")
+
+-- Make sure to update your Wifi network ssid's and passwords in esp32_wifi.lua
+print("Make sure to update your Wifi network ssid's and passwords in esp32_wifi.lua");
 
 cputil.on("tinyg_found", function(info, ws)
   led.stop()
